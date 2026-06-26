@@ -1143,8 +1143,14 @@ function saveReviewTime(){
   showToast(`Review set for ${h12}${mStr}${ampm} ✓`);
 }
 
-function closeSettings(){document.getElementById('settings-modal').classList.remove('show')}
-document.getElementById('settings-modal').addEventListener('click',e=>{if(e.target===document.getElementById('settings-modal'))closeSettings()});
+function closeSettings(){
+  const m=document.getElementById('settings-modal');
+  if(m)m.classList.remove('show');
+}
+document.addEventListener('click',e=>{
+  const modal=document.getElementById('settings-modal');
+  if(modal&&e.target===modal)closeSettings();
+});
 
 // ── SCHEDULED REVIEW ─────────────────────────────────────────
 let reviewCheckInterval=null;
