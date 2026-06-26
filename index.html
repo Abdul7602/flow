@@ -1114,9 +1114,6 @@ function openReviewSettings(){
   document.getElementById('settings-modal').classList.add('show');
 }
 
-document.getElementById('review-time-input').addEventListener('input',e=>{
-  updateReviewPreview(e.target.value);
-});
 
 function updateReviewPreview(val){
   const el=document.getElementById('review-time-preview');
@@ -1128,9 +1125,14 @@ function updateReviewPreview(val){
   el.textContent=`Flow will check in with you at ${h12}${mStr}${ampm} every day`;
 }
 
+document.addEventListener('input',e=>{
+  if(e.target&&e.target.id==='review-time-input')updateReviewPreview(e.target.value);
+});
+
 function saveReviewTime(){
-  const val=document.getElementById('review-time-input').value;
-  if(!val)return;
+  const inp=document.getElementById('review-time-input');
+  if(!inp||!inp.value)return;
+  const val=inp.value;
   localStorage.setItem('flow_review_time',val);
   document.getElementById('settings-modal').classList.remove('show');
   scheduleReview();
@@ -1138,7 +1140,7 @@ function saveReviewTime(){
   const ampm=h>=12?'pm':'am';
   const h12=h%12||12;
   const mStr=m===0?'':`:${String(m).padStart(2,'0')}`;
-  showToast(`Review set for ${h12}${mStr}${ampm}`);
+  showToast(`Review set for ${h12}${mStr}${ampm} ✓`);
 }
 
 function closeSettings(){document.getElementById('settings-modal').classList.remove('show')}
