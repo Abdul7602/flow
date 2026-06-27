@@ -6,7 +6,9 @@ Flow is an AI-powered personal productivity PWA that unifies notes, tasks, and c
 
 ---
 
-
+<p align="center">
+  <img src="images/Flow-note.png" alt="Flow Timeline Concept" width="100%">
+</p>
 
 ## Features
 
