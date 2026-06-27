@@ -1,10 +1,12 @@
 # Flow
 
-> Write naturally. Your day connects itself.
+> Write naturally. Your life timelline connects itself.
 
 Flow is an AI-powered personal productivity PWA that unifies notes, tasks, and calendar in one place. Write anything in a note — dates, appointments, tasks — and Flow extracts and organises them automatically. No context switching, no separate apps.
 
 ---
+
+
 
 ## Features
 
