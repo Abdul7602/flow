@@ -197,8 +197,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface3);color:var(--text);font-size:13px;padding:9px 18px;border-radius:20px;opacity:0;transition:all 0.22s;white-space:nowrap;z-index:300;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.auth-screen{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;max-width:400px;margin:0 auto}
+.auth-logo{font-size:44px;font-weight:700;letter-spacing:-1px;margin-bottom:6px}
+.auth-tag{font-size:14px;color:var(--text2-60);margin-bottom:40px;text-align:center}
+.auth-input{width:100%;font-size:16px;font-family:var(--font);padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);color:var(--text);outline:none;margin-bottom:12px}
+.auth-input:focus{border-color:var(--today)}
+.auth-btn{width:100%;padding:14px;border-radius:12px;background:var(--text);color:var(--accent-inv);border:none;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer;transition:opacity 0.15s}
+.auth-btn:active{opacity:0.75}
+.auth-btn:disabled{opacity:0.4}
+.auth-msg{font-size:13px;color:var(--text2-60);margin-top:16px;text-align:center;line-height:1.5}
+.auth-msg.success{color:#2d8a4e}
+.sync-dot{position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;background:#2d8a4e;opacity:0;transition:opacity 0.3s}
+.sync-dot.syncing{opacity:1;background:var(--priority);animation:pulse 1s infinite}
+</style>
 </head>
 <body>
+<div class="auth-screen" id="auth-screen" style="display:none">
+  <div class="auth-logo">Flow</div>
+  <div class="auth-tag">Write naturally. Your day connects itself.</div>
+  <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email">
+  <button class="auth-btn" id="auth-btn" onclick="sendMagicLink()">Send magic link</button>
+  <div class="auth-msg" id="auth-msg"></div>
+</div>
 
 <div class="tab" id="tab-cal">
   <div class="header">
@@ -208,6 +230,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div class="header-sub" id="cal-today-label">Today</div>
       </div>
       <div class="moon-wrap" id="moon-wrap">
+        <div class="sync-dot" id="sync-dot"></div>
         <div class="icon-btn" id="moon-btn" onclick="showReview()">🌙</div>
         <div class="moon-hint" id="moon-hint">Hold for review time</div>
       </div>
@@ -342,12 +365,101 @@ let selectedWeekDay=now.getDay();
 let currentNoteId=null;
 let parseTimer=null;
 
-function loadData(){
-  try{return JSON.parse(localStorage.getItem('flow_data')||'{"notes":[],"tasks":[]}')}
-  catch{return{notes:[],tasks:[]}}
+// ═══ SUPABASE ═══════════════════════════════════════
+const SUPA_URL='https://aqtnelbqkwtrbqbpzuut.supabase.co';
+const SUPA_KEY='sb_publishable_egWjxNasAAupa6ceXmtFCw_NaSMnWEj';
+const supa=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+let currentUser=null;
+let cache={notes:[],tasks:[]};
+let syncTimer=null;
+let lastSyncedNoteIds=new Set();
+let lastSyncedTaskIds=new Set();
+
+function loadData(){return cache}
+function saveData(d){
+  cache=d;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(syncToSupabase,600);
 }
-function saveData(d){localStorage.setItem('flow_data',JSON.stringify(d))}
-function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function genId(){return crypto.randomUUID()}
+
+// snake_case ↔ camelCase mapping
+function noteToRow(n){return{id:n.id,user_id:currentUser.id,title:n.title||'',body:n.body||'',pinned:!!n.pinned,archived:!!n.archived,priority:n.priority||'normal'}}
+function rowToNote(r){return{id:r.id,title:r.title,body:r.body,pinned:r.pinned,archived:r.archived,priority:r.priority,created:new Date(r.created_at).getTime(),updated:new Date(r.updated_at).getTime()}}
+function taskToRow(t){return{id:t.id,note_id:t.noteId,user_id:currentUser.id,text:t.text,date:t.date||null,time:t.time||null,done:!!t.done,manual:!!t.manual,priority:t.priority||'normal',foreign_time:t.foreignTime||null,foreign_tz:t.foreignTz||null,foreign_city:t.foreignCity||null,address:t.address||null,address_display:t.addressDisplay||null,address_detail:t.addressDetail||null,venue:t.venue||null}}
+function rowToTask(r){return{id:r.id,noteId:r.note_id,text:r.text,date:r.date,time:r.time?r.time.slice(0,5):null,done:r.done,manual:r.manual,priority:r.priority,foreignTime:r.foreign_time?r.foreign_time.slice(0,5):null,foreignTz:r.foreign_tz,foreignCity:r.foreign_city,address:r.address,addressDisplay:r.address_display,addressDetail:r.address_detail,venue:r.venue,created:new Date(r.created_at).getTime()}}
+
+async function syncToSupabase(){
+  if(!currentUser)return;
+  const dot=document.getElementById('sync-dot');
+  if(dot)dot.classList.add('syncing');
+  try{
+    const noteIds=new Set(cache.notes.map(n=>n.id));
+    const taskIds=new Set(cache.tasks.map(t=>t.id));
+    // deletes first (tasks then notes for FK order)
+    const delTasks=[...lastSyncedTaskIds].filter(id=>!taskIds.has(id));
+    const delNotes=[...lastSyncedNoteIds].filter(id=>!noteIds.has(id));
+    if(delTasks.length)await supa.from('tasks').delete().in('id',delTasks);
+    if(delNotes.length)await supa.from('notes').delete().in('id',delNotes);
+    // upserts (notes then tasks for FK order)
+    if(cache.notes.length)await supa.from('notes').upsert(cache.notes.map(noteToRow));
+    if(cache.tasks.length)await supa.from('tasks').upsert(cache.tasks.map(taskToRow));
+    lastSyncedNoteIds=noteIds;
+    lastSyncedTaskIds=taskIds;
+  }catch(e){console.error('sync error',e)}
+  finally{if(dot)dot.classList.remove('syncing')}
+}
+
+async function fetchAllData(){
+  const [notesRes,tasksRes,settingsRes]=await Promise.all([
+    supa.from('notes').select('*').order('updated_at',{ascending:false}),
+    supa.from('tasks').select('*'),
+    supa.from('settings').select('*').single()
+  ]);
+  cache.notes=(notesRes.data||[]).map(rowToNote);
+  cache.tasks=(tasksRes.data||[]).map(rowToTask);
+  lastSyncedNoteIds=new Set(cache.notes.map(n=>n.id));
+  lastSyncedTaskIds=new Set(cache.tasks.map(t=>t.id));
+  if(settingsRes.data){
+    if(settingsRes.data.review_time)localStorage.setItem('flow_review_time',settingsRes.data.review_time.slice(0,5));
+  }
+}
+
+// ═══ AUTH ═══════════════════════════════════════════
+async function sendMagicLink(){
+  const email=document.getElementById('auth-email').value.trim();
+  const msg=document.getElementById('auth-msg');
+  const btn=document.getElementById('auth-btn');
+  if(!email||!email.includes('@')){msg.textContent='Enter a valid email';return}
+  btn.disabled=true;btn.textContent='Sending…';
+  const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href.split('#')[0]}});
+  if(error){msg.textContent=error.message;btn.disabled=false;btn.textContent='Send magic link'}
+  else{msg.textContent='✓ Check your email — tap the link to sign in';msg.className='auth-msg success';btn.textContent='Link sent';}
+}
+
+async function initAuth(){
+  const{data:{session}}=await supa.auth.getSession();
+  if(session){
+    currentUser=session.user;
+    document.getElementById('auth-screen').style.display='none';
+    await fetchAllData();
+    renderNotesList();renderCal();
+  }else{
+    document.getElementById('auth-screen').style.display='flex';
+  }
+  supa.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='SIGNED_IN'&&session){
+      currentUser=session.user;
+      document.getElementById('auth-screen').style.display='none';
+      await fetchAllData();
+      renderNotesList();renderCal();
+    }
+    if(event==='SIGNED_OUT'){
+      currentUser=null;cache={notes:[],tasks:[]};
+      document.getElementById('auth-screen').style.display='flex';
+    }
+  });
+}
 
 function showToast(msg){
   const t=document.getElementById('toast');
@@ -1134,6 +1246,7 @@ function saveReviewTime(){
   if(!inp||!inp.value)return;
   const val=inp.value;
   localStorage.setItem('flow_review_time',val);
+  if(currentUser)supa.from('settings').update({review_time:val}).eq('user_id',currentUser.id).then(()=>{});
   document.getElementById('settings-modal').classList.remove('show');
   scheduleReview();
   const [h,m]=val.split(':').map(Number);
@@ -1174,8 +1287,7 @@ scheduleReview();
 // ─────────────────────────────────────────────────────────────
 if(!localStorage.getItem('flow_first_open'))localStorage.setItem('flow_first_open',Date.now().toString());
 resetDailyRoutineIfNewDay();
-renderNotesList();
-renderCal();
+initAuth();
 </script>
 </body>
 </html>
