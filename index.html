@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{min-width:0;overflow-wrap:anywhere}
+.tab,.scroll,.notes-list,.note-card,#notes-list-view{max-width:100%;overflow-x:hidden}
 :root{
   --bg:#f2f2f7;--surface:#ffffff;--surface2:#f2f2f7;--surface3:#e5e5ea;
   --text:#000000;--text2:#3c3c43;--text2-60:rgba(60,60,67,0.6);--text3:#aeaeb2;
@@ -121,7 +123,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .task-text.done{text-decoration:line-through;color:var(--text3)}
 .task-meta{font-size:11px;color:var(--text3);margin-top:2px}
 .task-priority-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:8px}
-.task-address{font-size:12px;margin-top:3px;line-height:1.4}
+.task-address{font-size:12px;margin-top:3px;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
 .dot-urgent{background:var(--urgent)}
 .dot-priority{background:var(--priority)}
 .dot-normal{background:var(--text3)}
