@@ -29,11 +29,11 @@
     --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
   }
 }
-html{background:#000}
+html{background:#0a0a0a}
 body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;max-width:420px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
 @media(min-width:421px){
-  html{display:flex;align-items:center;justify-content:center;min-height:100vh}
-  body{height:min(900px,100vh);box-shadow:0 0 80px rgba(0,0,0,0.4)}
+  html{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  body{height:min(880px,calc(100vh - 40px));border-radius:28px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,0.06),0 24px 80px rgba(0,0,0,0.6)}
 }
 
 /* NAV — iOS tab bar style */
@@ -204,7 +204,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-.auth-screen{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;max-width:400px;margin:0 auto}
+.auth-screen{position:absolute;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
 .auth-logo{font-size:44px;font-weight:700;letter-spacing:-1px;margin-bottom:6px}
 .auth-tag{font-size:14px;color:var(--text2-60);margin-bottom:40px;text-align:center}
 .auth-input{width:100%;font-size:16px;font-family:var(--font);padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);color:var(--text);outline:none;margin-bottom:12px}
