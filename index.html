@@ -29,7 +29,12 @@
     --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
   }
 }
-body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;max-width:400px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+html{background:#000}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;max-width:420px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+@media(min-width:421px){
+  html{display:flex;align-items:center;justify-content:center;min-height:100vh}
+  body{height:min(900px,100vh);box-shadow:0 0 80px rgba(0,0,0,0.4)}
+}
 
 /* NAV — iOS tab bar style */
 .bottom-nav{display:flex;background:var(--surface);border-top:0.5px solid var(--border2);padding:8px 0 24px;position:relative;z-index:100;flex-shrink:0}
@@ -335,6 +340,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
       <div id="review-time-preview" style="font-size:13px;color:var(--text2-60);margin-bottom:24px;text-align:center"></div>
       <button onclick="saveReviewTime()" style="width:100%;padding:14px;border-radius:12px;background:var(--text);color:var(--accent-inv);border:none;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer">Save</button>
+      <div style="margin-top:28px;padding-top:20px;border-top:0.5px solid var(--border)">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">SIGNED IN AS</div>
+        <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:16px"></div>
+        <button onclick="logout()" style="width:100%;padding:12px;border-radius:12px;background:transparent;color:var(--urgent);border:1px solid var(--border2);font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">Sign out</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1229,6 +1239,8 @@ function openReviewSettings(){
   document.getElementById('review-time-input').value=saved;
   updateReviewPreview(saved);
   document.getElementById('settings-modal').classList.add('show');
+  const emailEl=document.getElementById('account-email');
+  if(emailEl&&currentUser)emailEl.textContent=currentUser.email;
 }
 
 
@@ -1264,6 +1276,11 @@ function saveReviewTime(){
 function closeSettings(){
   const m=document.getElementById('settings-modal');
   if(m)m.classList.remove('show');
+}
+
+async function logout(){
+  await supa.auth.signOut();
+  closeSettings();
 }
 document.addEventListener('click',e=>{
   const modal=document.getElementById('settings-modal');
