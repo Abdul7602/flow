@@ -383,6 +383,21 @@ function saveData(d){
 }
 function genId(){return crypto.randomUUID()}
 
+// Claude API via secure Edge Function proxy — key lives server-side
+async function claudeCall(payload){
+  const{data:{session}}=await supa.auth.getSession();
+  if(!session)throw new Error('Not logged in');
+  const resp=await fetch(SUPA_URL+'/functions/v1/claude-proxy',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer '+session.access_token
+    },
+    body:JSON.stringify(payload)
+  });
+  return resp.json();
+}
+
 // snake_case ↔ camelCase mapping
 function noteToRow(n){return{id:n.id,user_id:currentUser.id,title:n.title||'',body:n.body||'',pinned:!!n.pinned,archived:!!n.archived,priority:n.priority||'normal'}}
 function rowToNote(r){return{id:r.id,title:r.title,body:r.body,pinned:r.pinned,archived:r.archived,priority:r.priority,created:new Date(r.created_at).getTime(),updated:new Date(r.updated_at).getTime()}}
@@ -840,11 +855,7 @@ async function triggerParse(){
 
   try{
     // Step 1: detect reschedule/cancel intent first
-    const reschedResp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+    const reschedData=await claudeCall({
         max_tokens:300,
         system:`You detect if a note reschedules, cancels, or refers to completing an existing task. 
 Today is ${todayStr}. Tomorrow is ${tomorrowStr}.
@@ -860,9 +871,8 @@ Return ONLY valid JSON, no markdown:
 
 Rules: Only match if the note clearly refers to an existing task by subject (e.g. "dentist" matches a dentist task). Resolve "next week Saturday" to the Saturday of next week. Be conservative — if unsure return none.`,
         messages:[{role:'user',content:`Title: ${title}\nNote: ${body}`}]
-      })
-    });
-    const rd=await reschedResp.json();
+      });
+    const rd=reschedData;
     const rtxt=(rd.content?.[0]?.text||'{"action":"none"}').replace(/\`\`\`json|\`\`\`/g,'').trim();
     let rr;try{rr=JSON.parse(rtxt)}catch{rr={action:'none'}}
 
@@ -893,17 +903,11 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     }
 
     // Step 2: normal extraction
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
+    const d=await claudeCall({
         max_tokens:600,
         system:`Extract tasks and appointments from notes. Return ONLY valid JSON, no markdown. Format: {"tasks":[{"text":"concise task label","date":"YYYY-MM-DD or null","time":"HH:MM or null","foreignTimezone":"IANA timezone string or null","foreignCity":"city name or null","address":"full address for Maps URL or null","addressDisplay":"short venue name or neighbourhood e.g. Käpylän lippakiska or Kamppi, Helsinki — what user sees as the blue link","addressDetail":"street/extra detail shown in grey after link e.g. Meurmanin puisto, Kullervonkatu — omit postcode and country, null if nothing useful to add","venue":"sub-location like room/floor/gate/venue code or null"}]}. Today is ${todayStr}. Tomorrow is ${tomorrowStr}. Next Saturday is ${nextSatStr}. Rules: 1) SPLITTING "and" tasks — three styles: (a) Confident split: two clearly independent actions with different objects → TWO entries; (b) Confident single: "and" connects steps e.g. "call dentist and reschedule" → one task; (c) Ambiguous e.g. "brush teeth and drink milk" → ONE combined task. 2) Resolve relative dates. 3) If no date mentioned set date to null. 4) Concise labels. 5) Foreign location: set foreignTimezone to IANA string and foreignCity to city name. 6) Address: if physical location mentioned, set address=full navigable address, addressDisplay=shortest recognisable name (venue name or area), addressDetail=useful street info only (no postcode/country). If online/no location set all null. 7) If nothing actionable return {"tasks":[]}.`,
         messages:[{role:'user',content:`Title: ${title}\nNote: ${body}`}]
-      })
-    });
-    const d=await resp.json();
+      });
     const txt=(d.content?.[0]?.text||'{"tasks":[]}').replace(/\`\`\`json|\`\`\`/g,'').trim();
     let parsed;try{parsed=JSON.parse(txt)}catch{parsed={tasks:[]}}
     if(parsed.tasks&&parsed.tasks.length){
