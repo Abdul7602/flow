@@ -22,6 +22,30 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data.json(); } catch { data = { title: 'Flow', body: e.data ? e.data.text() : 'Evening check-in' }; }
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Flow', {
+      body: data.body || 'Time for your evening review',
+      icon: './icons/icon-192.png',
+      badge: './icons/icon-192.png',
+      tag: 'flow-review',
+      data: { url: './' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      return clients.openWindow('./');
+    })
+  );
+});
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
