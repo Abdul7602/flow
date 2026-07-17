@@ -234,7 +234,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email">
   <button class="auth-btn" id="auth-btn" onclick="sendMagicLink()">Send magic link</button>
   <div id="otp-section" style="display:none;width:100%;margin-top:16px">
-    <input class="auth-input" type="text" inputmode="numeric" id="auth-otp" placeholder="6-digit code from email" maxlength="6" autocomplete="one-time-code" style="text-align:center;letter-spacing:0.3em;font-size:18px">
+    <input class="auth-input" type="text" inputmode="numeric" id="auth-otp" placeholder="Code from email" maxlength="10" autocomplete="one-time-code" style="text-align:center;letter-spacing:0.3em;font-size:18px">
     <button class="auth-btn" onclick="verifyOtp()">Verify code</button>
   </div>
   <div class="auth-msg" id="auth-msg"></div>
@@ -475,7 +475,7 @@ async function sendMagicLink(){
   const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href.split('#')[0]}});
   if(error){msg.textContent=error.message;btn.disabled=false;btn.textContent='Send magic link'}
   else{
-    msg.textContent='✓ Check your email — tap the link, or enter the 6-digit code here';
+    msg.textContent='✓ Check your email — tap the link, or enter the code here';
     msg.className='auth-msg success';
     btn.textContent='Resend';btn.disabled=false;
     document.getElementById('otp-section').style.display='block';
@@ -487,7 +487,7 @@ async function verifyOtp(){
   const email=document.getElementById('auth-email').value.trim();
   const code=document.getElementById('auth-otp').value.trim();
   const msg=document.getElementById('auth-msg');
-  if(!code||code.length!==6){msg.textContent='Enter the 6-digit code';msg.className='auth-msg';return}
+  if(!code||code.length<6){msg.textContent='Enter the code from the email';msg.className='auth-msg';return}
   msg.textContent='Verifying…';msg.className='auth-msg';
   const{error}=await supa.auth.verifyOtp({email,token:code,type:'email'});
   if(error){msg.textContent=error.message;msg.className='auth-msg'}
