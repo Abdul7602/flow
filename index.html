@@ -1341,12 +1341,14 @@ async function enablePush(){
       });
     }
     if(currentUser){
-      await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:sub.toJSON()});
+      await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
+      const{error:insErr}=await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:sub.toJSON()});
+      if(insErr)throw insErr;
     }
     btn.textContent='✓ Notifications enabled';
     showToast('You\'ll get your review reminder 🔔');
   }catch(e){
-    btn.textContent='Could not enable — try again';
+    btn.textContent='Error: '+(e.message||e.name||String(e)).slice(0,60);
     console.error('push error',e);
   }
 }
