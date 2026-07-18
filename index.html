@@ -209,6 +209,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 /* TOAST */
 .toast{position:absolute;bottom:96px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface3);color:var(--text);font-size:13px;padding:9px 18px;border-radius:20px;opacity:0;transition:all 0.22s;white-space:nowrap;z-index:300;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* iOS-style toggle switch */
+.switch{width:52px;height:32px;border-radius:16px;background:var(--surface3);cursor:pointer;position:relative;transition:background 0.25s;flex-shrink:0}
+.switch .switch-knob{position:absolute;top:2px;left:2px;width:28px;height:28px;border-radius:50%;background:#ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1)}
+.switch.on{background:var(--today)}
+.switch.on .switch-knob{transform:translateX(20px)}
+.switch.disabled{opacity:0.4;pointer-events:none}
+.switch.busy{pointer-events:none;opacity:0.7}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -353,7 +361,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
       <div id="review-time-preview" style="font-size:13px;color:var(--text2-60);margin-bottom:24px;text-align:center"></div>
       <button onclick="saveReviewTime()" style="width:100%;padding:14px;border-radius:12px;background:var(--text);color:var(--accent-inv);border:none;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer">Save</button>
-      <button id="notif-btn" onclick="togglePush()" style="width:100%;margin-top:12px;padding:13px;border-radius:12px;background:var(--surface3);color:var(--text);border:none;font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">🔔 Notifications</button>
+      <div id="notif-row" style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:4px 2px">
+        <div>
+          <div style="font-size:15px;font-weight:500">🔔 Notifications</div>
+          <div id="notif-sub" style="font-size:12px;color:var(--text2-60);margin-top:2px">Daily review reminder</div>
+        </div>
+        <div class="switch" id="notif-switch" onclick="togglePush()">
+          <div class="switch-knob"></div>
+        </div>
+      </div>
       <div style="margin-top:28px;padding-top:20px;border-top:0.5px solid var(--border)">
         <div style="font-size:12px;color:var(--text3);margin-bottom:6px">SIGNED IN AS</div>
         <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:16px"></div>
@@ -1339,43 +1355,46 @@ async function getPushState(){
 }
 
 async function refreshNotifBtn(){
-  const btn=document.getElementById('notif-btn');
-  if(!btn)return;
+  const sw=document.getElementById('notif-switch');
+  const sub=document.getElementById('notif-sub');
+  if(!sw)return;
   const state=await getPushState();
-  if(state==='unsupported'){btn.textContent='🔔 Notifications not supported here';btn.disabled=true}
-  else if(state==='denied'){btn.textContent='🔕 Blocked — allow in device settings';btn.disabled=true}
-  else if(state==='on'){btn.textContent='🔔 Notifications: ON — tap to turn off';btn.disabled=false}
-  else{btn.textContent='🔕 Notifications: OFF — tap to turn on';btn.disabled=false}
+  sw.classList.remove('on','disabled','busy');
+  if(state==='unsupported'){sw.classList.add('disabled');if(sub)sub.textContent='Not supported on this device'}
+  else if(state==='denied'){sw.classList.add('disabled');if(sub)sub.textContent='Blocked — allow in device settings'}
+  else if(state==='on'){sw.classList.add('on');if(sub)sub.textContent='Daily review reminder — on'}
+  else{if(sub)sub.textContent='Daily review reminder — off'}
 }
 
 let pushBusy=false;
 async function togglePush(){
   if(pushBusy)return;
   pushBusy=true;
-  const btn=document.getElementById('notif-btn');
+  const sw=document.getElementById('notif-switch');
+  if(sw)sw.classList.add('busy');
   try{
     const state=await getPushState();
     if(state==='on'){
-      // turn OFF — unsubscribe + remove from DB
-      btn.textContent='Turning off…';
+      // optimistic slide off
+      if(sw)sw.classList.remove('on');
       const reg=await navigator.serviceWorker.ready;
       const sub=await reg.pushManager.getSubscription();
       if(sub)await sub.unsubscribe();
       if(currentUser)await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
       showToast('Notifications off');
     }else if(state==='off'){
-      // turn ON
-      btn.textContent='Turning on…';
+      // optimistic slide on
+      if(sw)sw.classList.add('on');
       const perm=await Notification.requestPermission();
       if(perm==='granted'){
         const reg=await navigator.serviceWorker.ready;
-        const sub=await reg.pushManager.subscribe({
+        const subn=await reg.pushManager.subscribe({
           userVisibleOnly:true,
           applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)
         });
         if(currentUser){
           await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
-          const{error:insErr}=await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:sub.toJSON()});
+          const{error:insErr}=await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:subn.toJSON()});
           if(insErr)throw insErr;
         }
         showToast('You\'ll get your review reminder 🔔');
