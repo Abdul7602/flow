@@ -353,7 +353,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
       <div id="review-time-preview" style="font-size:13px;color:var(--text2-60);margin-bottom:24px;text-align:center"></div>
       <button onclick="saveReviewTime()" style="width:100%;padding:14px;border-radius:12px;background:var(--text);color:var(--accent-inv);border:none;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer">Save</button>
-      <button id="notif-btn" onclick="enablePush()" style="width:100%;margin-top:12px;padding:13px;border-radius:12px;background:var(--surface3);color:var(--text);border:none;font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">🔔 Enable notifications</button>
+      <button id="notif-btn" onclick="togglePush()" style="width:100%;margin-top:12px;padding:13px;border-radius:12px;background:var(--surface3);color:var(--text);border:none;font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">🔔 Notifications</button>
       <div style="margin-top:28px;padding-top:20px;border-top:0.5px solid var(--border)">
         <div style="font-size:12px;color:var(--text3);margin-bottom:6px">SIGNED IN AS</div>
         <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:16px"></div>
@@ -1275,6 +1275,7 @@ function openReviewSettings(){
   document.getElementById('settings-modal').classList.add('show');
   const emailEl=document.getElementById('account-email');
   if(emailEl&&currentUser)emailEl.textContent=currentUser.email;
+  refreshNotifBtn();
 }
 
 
@@ -1327,32 +1328,65 @@ function urlB64ToUint8(s){
   return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
 }
 
-async function enablePush(){
+async function getPushState(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator))return'unsupported';
+  if(Notification.permission==='denied')return'denied';
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    return sub?'on':'off';
+  }catch{return'off'}
+}
+
+async function refreshNotifBtn(){
+  const btn=document.getElementById('notif-btn');
+  if(!btn)return;
+  const state=await getPushState();
+  if(state==='unsupported'){btn.textContent='🔔 Notifications not supported here';btn.disabled=true}
+  else if(state==='denied'){btn.textContent='🔕 Blocked — allow in device settings';btn.disabled=true}
+  else if(state==='on'){btn.textContent='🔔 Notifications: ON — tap to turn off';btn.disabled=false}
+  else{btn.textContent='🔕 Notifications: OFF — tap to turn on';btn.disabled=false}
+}
+
+let pushBusy=false;
+async function togglePush(){
+  if(pushBusy)return;
+  pushBusy=true;
   const btn=document.getElementById('notif-btn');
   try{
-    if(!('Notification' in window)||!('serviceWorker' in navigator)){
-      btn.textContent='Not supported on this device';return;
+    const state=await getPushState();
+    if(state==='on'){
+      // turn OFF — unsubscribe + remove from DB
+      btn.textContent='Turning off…';
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(sub)await sub.unsubscribe();
+      if(currentUser)await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
+      showToast('Notifications off');
+    }else if(state==='off'){
+      // turn ON
+      btn.textContent='Turning on…';
+      const perm=await Notification.requestPermission();
+      if(perm==='granted'){
+        const reg=await navigator.serviceWorker.ready;
+        const sub=await reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)
+        });
+        if(currentUser){
+          await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
+          const{error:insErr}=await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:sub.toJSON()});
+          if(insErr)throw insErr;
+        }
+        showToast('You\'ll get your review reminder 🔔');
+      }
     }
-    const perm=await Notification.requestPermission();
-    if(perm!=='granted'){btn.textContent='🔕 Permission denied — enable in device settings';return}
-    const reg=await navigator.serviceWorker.ready;
-    let sub=await reg.pushManager.getSubscription();
-    if(!sub){
-      sub=await reg.pushManager.subscribe({
-        userVisibleOnly:true,
-        applicationServerKey:urlB64ToUint8(VAPID_PUBLIC)
-      });
-    }
-    if(currentUser){
-      await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
-      const{error:insErr}=await supa.from('push_subscriptions').insert({user_id:currentUser.id,subscription:sub.toJSON()});
-      if(insErr)throw insErr;
-    }
-    btn.textContent='✓ Notifications enabled';
-    showToast('You\'ll get your review reminder 🔔');
   }catch(e){
-    btn.textContent='Error: '+(e.message||e.name||String(e)).slice(0,60);
-    console.error('push error',e);
+    showToast('Error: '+(e.message||'could not update').slice(0,50));
+    console.error('push toggle error',e);
+  }finally{
+    pushBusy=false;
+    refreshNotifBtn();
   }
 }
 document.addEventListener('click',e=>{
