@@ -23,9 +23,11 @@ Deno.serve(async (_req) => {
     )
 
     // all users' settings
+    const MAX_PUSHES_PER_DAY = 3  // TESTING — revert to 1 for production
+
     const { data: settings, error } = await supabase
       .from('settings')
-      .select('user_id, review_time, timezone, last_push_date')
+      .select('user_id, review_time, timezone, last_push_date, push_count')
     if (error) throw error
 
     let sent = 0
@@ -40,8 +42,9 @@ Deno.serve(async (_req) => {
       }).format(now)
       const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now) // YYYY-MM-DD
 
-      // already pushed today?
-      if (s.last_push_date === localDate) continue
+      // daily push limit
+      const countToday = s.last_push_date === localDate ? (s.push_count || 0) : 0
+      if (countToday >= MAX_PUSHES_PER_DAY) continue
 
       // review time match (within the 5-min cron window)
       const review = (s.review_time || '22:00').slice(0, 5)
@@ -85,7 +88,7 @@ Deno.serve(async (_req) => {
       }
 
       await supabase.from('settings')
-        .update({ last_push_date: localDate })
+        .update({ last_push_date: localDate, push_count: countToday + 1 })
         .eq('user_id', s.user_id)
     }
 
