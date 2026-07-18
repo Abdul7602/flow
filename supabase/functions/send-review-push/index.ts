@@ -23,7 +23,7 @@ Deno.serve(async (_req) => {
     )
 
     // all users' settings
-    const MAX_PUSHES_PER_DAY = 3  // TESTING — revert to 1 for production
+    const MAX_PUSHES_PER_DAY = 1  // production: one review push per day (raise for testing)
 
     const { data: settings, error } = await supabase
       .from('settings')
