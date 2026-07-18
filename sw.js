@@ -1,5 +1,5 @@
 // Flow service worker — offline app shell
-const CACHE = 'flow-v1';
+const CACHE = 'flow-v2';
 const SHELL = [
   './',
   './index.html',
@@ -54,7 +54,7 @@ self.addEventListener('fetch', e => {
 
   // Network-first for the app shell: always fresh when online, cached when offline
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy));

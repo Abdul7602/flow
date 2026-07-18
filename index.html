@@ -1417,9 +1417,9 @@ scheduleReview();
 if(!localStorage.getItem('flow_first_open'))localStorage.setItem('flow_first_open',Date.now().toString());
 resetDailyRoutineIfNewDay();
 initAuth();
-// PWA — register service worker
+// PWA — register service worker + check for updates on every open
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg=>{reg.update()}).catch(()=>{});
 }
 </script>
 </body>
