@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     // Only allow the fields we expect — no arbitrary passthrough
     const claudePayload = {
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: Math.min(body.max_tokens || 600, 1000),
       system: body.system || '',
       messages: body.messages || [],

@@ -805,7 +805,7 @@ function setPriorityUI(p){
 document.getElementById('note-body-input').addEventListener('input',()=>{
   saveCurrentNote();
   clearTimeout(parseTimer);
-  parseTimer=setTimeout(triggerParse,1200);
+  parseTimer=setTimeout(triggerParse,2000);
 });
 document.getElementById('note-title-input').addEventListener('keydown',e=>{
   if(e.key==='Enter'){e.preventDefault();document.getElementById('note-body-input').focus()}
@@ -884,6 +884,8 @@ function fmt12(timeStr){
 }
 // ─────────────────────────────────────────────────────────────
 
+const parsedCache={}; // noteId -> last parsed text, avoids duplicate API calls
+
 async function triggerParse(){
   if(!currentNoteId)return;
   const data=loadData();
@@ -893,6 +895,10 @@ async function triggerParse(){
   const body=(note.body||'').trim();
   const title=(note.title||'').trim();
   if(!body&&!title)return;
+  const fullText=title+'\n'+body;
+  if(fullText.length<4)return;                       // too short to contain a task
+  if(parsedCache[currentNoteId]===fullText)return;   // unchanged since last parse — skip API
+  parsedCache[currentNoteId]=fullText;
   const priority=note.priority||'normal';
   const aiStatus=document.getElementById('ai-status');
   aiStatus.style.display='flex';
