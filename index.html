@@ -1445,9 +1445,22 @@ scheduleReview();
 if(!localStorage.getItem('flow_first_open'))localStorage.setItem('flow_first_open',Date.now().toString());
 resetDailyRoutineIfNewDay();
 initAuth();
-// PWA — register service worker + check for updates on every open
+// PWA — register service worker + self-updating loop
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg=>{reg.update()}).catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.update();
+    // check for new version every time the app comes to foreground
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')reg.update();
+    });
+  }).catch(()=>{});
+  // when a new service worker takes control, reload once to run the new code
+  let reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloading)return;
+    reloading=true;
+    location.reload();
+  });
 }
 </script>
 </body>
