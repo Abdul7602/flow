@@ -377,6 +377,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div style="font-size:12px;color:var(--text3);margin-bottom:6px">SIGNED IN AS</div>
         <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:16px"></div>
         <button onclick="logout()" style="width:100%;padding:12px;border-radius:12px;background:transparent;color:var(--urgent);border:1px solid var(--border2);font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">Sign out</button>
+        <button onclick="deleteAccount()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;background:transparent;color:var(--text3);border:none;font-family:var(--font);font-size:13px;cursor:pointer">Delete account &amp; all data</button>
       </div>
     </div>
   </div>
@@ -1341,6 +1342,35 @@ function closeSettings(){
 async function logout(){
   await supa.auth.signOut();
   closeSettings();
+}
+
+async function deleteAccount(){
+  if(!currentUser)return;
+  const sure=confirm('Delete your account and ALL your data?\n\nEvery note, task, and setting will be permanently erased. This cannot be undone.');
+  if(!sure)return;
+  const typed=prompt('Type DELETE to confirm:');
+  if(typed!=='DELETE'){showToast('Cancelled');return}
+  try{
+    showToast('Deleting account…');
+    const{data:{session}}=await supa.auth.getSession();
+    const resp=await fetch(SUPA_URL+'/functions/v1/delete-account',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+session.access_token,
+        'apikey':SUPA_KEY
+      }
+    });
+    const d=await resp.json();
+    if(d.error)throw new Error(d.error);
+    // wipe local state and return to login
+    cache={notes:[],tasks:[]};
+    await supa.auth.signOut();
+    closeSettings();
+    showToast('Account deleted');
+  }catch(e){
+    showToast('Could not delete: '+(e.message||'try again').slice(0,40));
+  }
 }
 
 // ── PUSH NOTIFICATIONS ───────────────────────────────────────
