@@ -1055,7 +1055,7 @@ function renderTaskList(noteId){
     const dotClass=t.priority==='urgent'?'dot-urgent':t.priority==='priority'?'dot-priority':'dot-normal';
     const timeLabel=t.time?fmt12(t.time):null;
     const foreignLabel=(t.foreignTime&&t.foreignCity&&t.foreignTime!==t.time)
-      ?` · <span style="color:var(--text3)">${fmt12(t.foreignTime)} ${t.foreignCity}</span>`:'';
+      ?` <span style="color:var(--text3)">(${fmt12(t.foreignTime)} ${t.foreignCity})</span>`:'';
     const metaStr=t.date?formatDateStr(t.date)+(timeLabel?' · '+timeLabel:''):'';
     return`<div class="task-item" id="ti-${t.id}">
       <div class="task-check${t.done?' checked':''}" onclick="toggleTask('${t.id}')"></div>
