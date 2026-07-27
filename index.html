@@ -47,6 +47,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   body{height:min(880px,calc(100vh - 40px));border-radius:28px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,0.06),0 24px 80px rgba(0,0,0,0.6)}
 }
 
+/* Phone in landscape — lock can't be enforced on iOS, so show rotate prompt */
+#rotate-lock{display:none}
+@media(max-height:500px) and (orientation:landscape){
+  body>.tab,body>nav.bottom-nav,body>#auth-screen{display:none !important}
+  #rotate-lock{display:flex;position:fixed;inset:0;background:var(--bg);z-index:5000;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+  #rotate-lock .ricon{font-size:44px;animation:rspin 2s ease-in-out infinite}
+  #rotate-lock .rtext{font-size:16px;color:var(--text);font-weight:500}
+  #rotate-lock .rsub{font-size:13px;color:var(--text2-60)}
+}
+@keyframes rspin{0%,40%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+
 /* NAV — iOS tab bar style */
 .bottom-nav{display:flex;background:var(--surface);border-top:0.5px solid var(--border2);padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 10px);position:relative;z-index:100;flex-shrink:0}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;cursor:pointer;border:none;background:none;font-family:var(--font);transition:all 0.2s}
@@ -239,6 +250,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 </style>
 </head>
 <body>
+<div id="rotate-lock">
+  <div class="ricon">📱</div>
+  <div class="rtext">Please rotate to portrait</div>
+  <div class="rsub">Flow works best upright</div>
+</div>
 <div class="auth-screen" id="auth-screen" style="display:none">
   <div class="auth-logo">Flow</div>
   <div class="auth-tag">Write naturally. Your day connects itself.</div>
