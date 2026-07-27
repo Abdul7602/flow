@@ -1475,6 +1475,8 @@ scheduleReview();
 if(!localStorage.getItem('flow_first_open'))localStorage.setItem('flow_first_open',Date.now().toString());
 resetDailyRoutineIfNewDay();
 initAuth();
+// lock to portrait where the browser allows it (installed PWA on Android/Chromium)
+try{ if(screen.orientation&&screen.orientation.lock){screen.orientation.lock('portrait').catch(()=>{});} }catch(e){}
 // PWA — register service worker + self-updating loop
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>{
