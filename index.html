@@ -925,7 +925,10 @@ async function triggerParse(){
     .join('\n');
 
   try{
-    // Step 1: detect reschedule/cancel intent first
+    // Step 1: detect reschedule/cancel intent — ONLY if the text signals it
+    const rescheduleSignal=/\b(reschedul|postpon|moved?|move it|changed? to|shift|cancel|didn'?t go|couldn'?t|re-?appoint|pushed? to|delay)/i.test(body+' '+title);
+    let rr={action:'none'};
+    if(rescheduleSignal&&taskSummary){
     const reschedData=await claudeCall({
         max_tokens:300,
         system:`You detect if a note reschedules, cancels, or refers to completing an existing task. 
@@ -945,7 +948,8 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
       });
     const rd=reschedData;
     const rtxt=(rd.content?.[0]?.text||'{"action":"none"}').replace(/\`\`\`json|\`\`\`/g,'').trim();
-    let rr;try{rr=JSON.parse(rtxt)}catch{rr={action:'none'}}
+    try{rr=JSON.parse(rtxt)}catch{rr={action:'none'}}
+    }
 
     if(rr.action==='reschedule'&&rr.taskId){
       const target=data.tasks.find(t=>t.id===rr.taskId);
