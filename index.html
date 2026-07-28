@@ -97,6 +97,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .note-card.pinned{border-left:3px solid var(--today)}
 .pin-badge{font-size:10px;color:var(--today);font-weight:600;letter-spacing:0.03em}
 .note-card.priority-border{border-left:3px solid var(--priority)}
+/* swipe to delete */
+.swipe-wrap{position:relative;overflow:hidden;border-radius:0}
+.swipe-wrap:first-of-type{border-radius:12px 12px 0 0}
+.swipe-wrap:last-of-type{border-radius:0 0 12px 12px}
+.swipe-wrap:only-of-type{border-radius:12px}
+.swipe-delete{position:absolute;top:0;right:0;bottom:0;width:88px;background:var(--urgent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;cursor:pointer;z-index:1}
+.swipe-card{position:relative;z-index:2;transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);background:var(--bg)}
+.swipe-card.revealed{transform:translateX(-88px)}
+.swipe-card.dragging{transition:none}
 .note-title{font-size:15px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .note-preview{font-size:13px;color:var(--text2-60);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}
 .note-meta{display:flex;align-items:center;gap:8px;margin-top:5px}
@@ -682,17 +691,18 @@ function renderNotesList(){
     const priorityTask=noteTasks.find(t=>t.priority==='priority');
     const borderClass=n.pinned?'pinned':urgentTask?'urgent-border':priorityTask?'priority-border':'';
     const badge=n.pinned?`<span class="pin-badge">📌 Daily</span>`:urgentTask?`<span class="task-badge badge-urgent">Urgent</span>`:priorityTask?`<span class="task-badge badge-priority">Priority</span>`:noteTasks.length?`<span class="task-badge badge-normal">${noteTasks.length} task${noteTasks.length>1?'s':''}</span>`:'';
-    // display title: explicit title → first non-empty body line → fallback
     const bodyLines=(n.body||'').split('\n').map(l=>l.trim()).filter(Boolean);
     const displayTitle=n.pinned?'Daily routine':(n.title||bodyLines[0]||'New note');
-    // preview: body (skip first line if it's being used as title)
     const previewStart=(!n.title&&bodyLines.length>0)?1:0;
     const previewText=bodyLines.slice(previewStart).join(' ').slice(0,80);
-    return`<div class="note-card ${borderClass}" onclick="openNote('${n.id}')">
+    const card=`<div class="note-card ${borderClass}" onclick="openNote('${n.id}')">
       <div class="note-title">${displayTitle}</div>
       <div class="note-preview">${previewText||'<em style="color:var(--text3)">Empty note</em>'}</div>
       <div class="note-meta"><span class="note-date">${n.pinned?'Pinned':formatDate(n.updated)}</span>${badge}</div>
     </div>`;
+    // pinned note can't be swipe-deleted; others get swipe wrapper
+    if(n.pinned)return card;
+    return`<div class="swipe-wrap" data-noteid="${n.id}"><div class="swipe-delete" onclick="event.stopPropagation();swipeDeleteNote('${n.id}')">Delete</div><div class="swipe-card">${card}</div></div>`;
   }
 
   const pinnedHTML=pinned?noteCardHTML(pinned):'';
@@ -703,6 +713,7 @@ function renderNotesList(){
 
   listEl.innerHTML=pinnedHTML+createPinnedBtn+`<div class="new-note-btn" onclick="openNewNote()"><span class="new-note-icon">+</span><span class="new-note-text">New note</span></div>`+live.map(noteCardHTML).join('');
   archEl.innerHTML=archived.map(n=>`<div class="note-card" style="opacity:0.55" onclick="openNote('${n.id}')"><div class="note-title">${n.title||'Untitled'}</div><div class="note-preview">All tasks complete · archived</div><div class="note-meta"><span class="note-date">${formatDate(n.updated)}</span></div></div>`).join('');
+  bindSwipeGestures();
 }
 
 function formatDate(ts){
@@ -742,6 +753,55 @@ function openNewNote(){
   saveData(data);
   openNote(id);
 }
+
+// ── SWIPE TO DELETE ──────────────────────────────────────────
+let openSwipeCard=null;
+function bindSwipeGestures(){
+  document.querySelectorAll('.swipe-wrap').forEach(wrap=>{
+    const cardEl=wrap.querySelector('.swipe-card');
+    if(cardEl.dataset.bound)return;
+    cardEl.dataset.bound='1';
+    let startX=0,curX=0,dragging=false,moved=false;
+    cardEl.addEventListener('touchstart',e=>{
+      if(openSwipeCard&&openSwipeCard!==cardEl){openSwipeCard.classList.remove('revealed');openSwipeCard=null;}
+      startX=e.touches[0].clientX;dragging=true;moved=false;
+      cardEl.classList.add('dragging');
+    },{passive:true});
+    cardEl.addEventListener('touchmove',e=>{
+      if(!dragging)return;
+      curX=e.touches[0].clientX-startX;
+      if(Math.abs(curX)>6)moved=true;
+      let tx=Math.min(0,Math.max(-88,curX));            // clamp 0..-88
+      if(cardEl.classList.contains('revealed'))tx=Math.min(0,Math.max(-88,curX-88));
+      cardEl.style.transform=`translateX(${tx}px)`;
+    },{passive:true});
+    cardEl.addEventListener('touchend',()=>{
+      dragging=false;cardEl.classList.remove('dragging');cardEl.style.transform='';
+      const wasRevealed=cardEl.classList.contains('revealed');
+      if(curX<-40&&!wasRevealed){cardEl.classList.add('revealed');openSwipeCard=cardEl;}
+      else if(curX>40&&wasRevealed){cardEl.classList.remove('revealed');openSwipeCard=null;}
+      else if(wasRevealed&&curX>-10&&curX<10){/* stay */}
+      curX=0;
+    });
+    // block the card's openNote click if it was a swipe or is revealed
+    cardEl.addEventListener('click',e=>{
+      if(moved||cardEl.classList.contains('revealed')){e.stopPropagation();e.preventDefault();
+        if(cardEl.classList.contains('revealed')){cardEl.classList.remove('revealed');openSwipeCard=null;}
+      }
+    },true);
+  });
+}
+
+async function swipeDeleteNote(noteId){
+  const data=loadData();
+  data.notes=data.notes.filter(n=>n.id!==noteId);
+  data.tasks=data.tasks.filter(t=>t.noteId!==noteId);
+  saveData(data);
+  openSwipeCard=null;
+  renderNotesList();
+  showToast('Note deleted');
+}
+// ─────────────────────────────────────────────────────────────
 
 function openNote(id){
   currentNoteId=id;
