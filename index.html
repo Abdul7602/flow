@@ -822,7 +822,7 @@ function openNote(id){
   setTimeout(()=>document.getElementById('note-title-input').focus(),60);
 }
 
-function closeEditor(){
+async function closeEditor(){
   if(currentNoteId){
     const data=loadData();
     const note=data.notes.find(n=>n.id===currentNoteId);
@@ -831,9 +831,28 @@ function closeEditor(){
       data.notes=data.notes.filter(n=>n.id!==currentNoteId);
       data.tasks=data.tasks.filter(t=>t.noteId!==currentNoteId);
       saveData(data);
-    }else{
-      saveCurrentNote();
+      document.getElementById('note-editor').classList.remove('open');
+      document.getElementById('notes-list-view').style.display='flex';
+      currentNoteId=null;
+      renderNotesList();
+      return;
     }
+    saveCurrentNote();
+    // close the UI immediately, but finish parsing in the background
+    const idAtClose=currentNoteId;
+    const noteNow=loadData().notes.find(n=>n.id===idAtClose);
+    const fullText=noteNow?((noteNow.title||'').trim()+'\n'+(noteNow.body||'').trim()):'';
+    const needsParse=fullText.trim().length>3&&parsedCache[idAtClose]!==fullText;
+    document.getElementById('note-editor').classList.remove('open');
+    document.getElementById('notes-list-view').style.display='flex';
+    renderNotesList();
+    if(needsParse){
+      clearTimeout(parseTimer);
+      await triggerParse();      // currentNoteId still set — parses correctly
+      renderNotesList();         // refresh badges with the new tasks
+    }
+    currentNoteId=null;
+    return;
   }
   document.getElementById('note-editor').classList.remove('open');
   document.getElementById('notes-list-view').style.display='flex';
