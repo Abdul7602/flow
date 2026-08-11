@@ -305,7 +305,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   <div id="notes-list-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="header">
       <div class="header-row">
-        <div class="header-title">Notes</div>
+        <div class="header-title" id="notes-title">Notes</div>
+        <div class="icon-btn" id="search-btn" onclick="toggleSearch()">🔍</div>
+      </div>
+      <div id="search-bar-wrap" style="max-height:0;overflow:hidden;transition:max-height 0.22s ease">
+        <input id="search-input" type="text" placeholder="Search notes…" autocomplete="off"
+          style="width:100%;margin-top:12px;padding:11px 14px;border-radius:12px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-family:var(--font);font-size:15px;outline:none">
       </div>
     </div>
     <div class="scroll">
@@ -676,11 +681,48 @@ function toggleCalTask(taskId){
   if(task.done)showToast('Marked done ✓');
 }
 
+// ── SEARCH ────────────────────────────────────────────────────
+let searchOpen=false;
+function toggleSearch(){
+  const wrap=document.getElementById('search-bar-wrap');
+  const input=document.getElementById('search-input');
+  const btn=document.getElementById('search-btn');
+  searchOpen=!searchOpen;
+  if(searchOpen){
+    wrap.style.maxHeight='60px';
+    btn.textContent='✕';
+    setTimeout(()=>input.focus(),150);
+  }else{
+    wrap.style.maxHeight='0';
+    btn.textContent='🔍';
+    input.value='';
+    renderNotesList();
+  }
+}
+document.addEventListener('input',e=>{
+  if(e.target&&e.target.id==='search-input')renderNotesList();
+});
+// ─────────────────────────────────────────────────────────────
+
 function renderNotesList(){
   const data=loadData();
   const pinned=data.notes.find(n=>n.pinned);
-  const live=data.notes.filter(n=>!n.archived&&!n.pinned);
-  const archived=data.notes.filter(n=>n.archived);
+  const q=(document.getElementById('search-input')?.value||'').trim().toLowerCase();
+
+  function matchesSearch(n){
+    if(!q)return true;
+    if((n.title||'').toLowerCase().includes(q))return true;
+    if((n.body||'').toLowerCase().includes(q))return true;
+    const noteTasks=data.tasks.filter(t=>t.noteId===n.id);
+    return noteTasks.some(t=>(t.text||'').toLowerCase().includes(q));
+  }
+
+  let live=data.notes.filter(n=>!n.archived&&!n.pinned);
+  let archived=data.notes.filter(n=>n.archived);
+  if(q){
+    live=live.filter(matchesSearch);
+    archived=archived.filter(matchesSearch);
+  }
   const listEl=document.getElementById('notes-list');
   const archEl=document.getElementById('archive-list');
   document.getElementById('archive-label').style.display=archived.length?'block':'none';
@@ -705,13 +747,19 @@ function renderNotesList(){
     return`<div class="swipe-wrap" data-noteid="${n.id}"><div class="swipe-delete" onclick="event.stopPropagation();swipeDeleteNote('${n.id}')">Delete</div><div class="swipe-card">${card}</div></div>`;
   }
 
-  const pinnedHTML=pinned?noteCardHTML(pinned):'';
-  const createPinnedBtn=!pinned?`<div class="note-card pinned" onclick="createPinnedNote()" style="opacity:0.6">
-    <div class="note-title" style="color:var(--today)">📌 Add daily routine</div>
-    <div class="note-preview">Tasks that repeat every day — brush teeth, morning walk…</div>
-  </div>`:'';
-
-  listEl.innerHTML=pinnedHTML+createPinnedBtn+`<div class="new-note-btn" onclick="openNewNote()"><span class="new-note-icon">+</span><span class="new-note-text">New note</span></div>`+live.map(noteCardHTML).join('');
+  if(q){
+    // search mode — clean results list, no pinned card or new-note button
+    const noResults=!live.length&&!archived.length
+      ?`<div style="text-align:center;padding:40px 20px;color:var(--text3);font-size:14px">No notes match "${q}"</div>`:'';
+    listEl.innerHTML=noResults+live.map(noteCardHTML).join('');
+  }else{
+    const pinnedHTML=pinned?noteCardHTML(pinned):'';
+    const createPinnedBtn=!pinned?`<div class="note-card pinned" onclick="createPinnedNote()" style="opacity:0.6">
+      <div class="note-title" style="color:var(--today)">📌 Add daily routine</div>
+      <div class="note-preview">Tasks that repeat every day — brush teeth, morning walk…</div>
+    </div>`:'';
+    listEl.innerHTML=pinnedHTML+createPinnedBtn+`<div class="new-note-btn" onclick="openNewNote()"><span class="new-note-icon">+</span><span class="new-note-text">New note</span></div>`+live.map(noteCardHTML).join('');
+  }
   archEl.innerHTML=archived.map(n=>`<div class="note-card" style="opacity:0.55" onclick="openNote('${n.id}')"><div class="note-title">${n.title||'Untitled'}</div><div class="note-preview">All tasks complete · archived</div><div class="note-meta"><span class="note-date">${formatDate(n.updated)}</span></div></div>`).join('');
   bindSwipeGestures();
 }
