@@ -683,6 +683,20 @@ function toggleCalTask(taskId){
 
 // ── SEARCH ────────────────────────────────────────────────────
 let searchOpen=false;
+let searchIdleTimer=null;
+
+function collapseSearch(){
+  const wrap=document.getElementById('search-bar-wrap');
+  const input=document.getElementById('search-input');
+  const btn=document.getElementById('search-btn');
+  if(!searchOpen)return;
+  searchOpen=false;
+  wrap.style.maxHeight='0';
+  btn.textContent='🔍';
+  input.value='';
+  renderNotesList();
+}
+
 function toggleSearch(){
   const wrap=document.getElementById('search-bar-wrap');
   const input=document.getElementById('search-input');
@@ -693,6 +707,7 @@ function toggleSearch(){
     btn.textContent='✕';
     setTimeout(()=>input.focus(),150);
   }else{
+    clearTimeout(searchIdleTimer);
     wrap.style.maxHeight='0';
     btn.textContent='🔍';
     input.value='';
@@ -700,8 +715,23 @@ function toggleSearch(){
   }
 }
 document.addEventListener('input',e=>{
-  if(e.target&&e.target.id==='search-input')renderNotesList();
+  if(e.target&&e.target.id==='search-input'){
+    clearTimeout(searchIdleTimer);   // typing cancels any pending auto-collapse
+    renderNotesList();
+  }
 });
+document.addEventListener('blur',e=>{
+  if(e.target&&e.target.id==='search-input'){
+    // only start the idle clock if the field is empty when focus leaves
+    if(!e.target.value.trim()){
+      clearTimeout(searchIdleTimer);
+      searchIdleTimer=setTimeout(collapseSearch,30000);
+    }
+  }
+},true);
+document.addEventListener('focus',e=>{
+  if(e.target&&e.target.id==='search-input')clearTimeout(searchIdleTimer);
+},true);
 // ─────────────────────────────────────────────────────────────
 
 function renderNotesList(){
