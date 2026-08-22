@@ -4,7 +4,7 @@ Flow caps how many AI note-extractions each user can run per month, to protect a
 
 ## Where it lives
 
-The limit is one line in the `claude-proxy` Edge Function (code line no:20):
+The limit is one line in the `claude-proxy` Edge Function:
 
 ```ts
 const MONTHLY_LIMIT = 300 // extractions per user per month
