@@ -58,10 +58,19 @@ Deno.serve(async (req) => {
 
     const currentCount = settings?.parse_month === nowMonth ? (settings?.parse_count || 0) : 0
 
+    // usage-check mode: just report the count, don't call Claude or increment
+    const bodyPeek = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {}
+    if (bodyPeek.usageCheck) {
+      return new Response(JSON.stringify({
+        used: currentCount, limit: MONTHLY_LIMIT, remaining: Math.max(0, MONTHLY_LIMIT - currentCount),
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     if (currentCount >= MONTHLY_LIMIT) {
       return new Response(JSON.stringify({
         error: 'monthly_limit_reached',
         message: `You've reached this month's extraction limit (${MONTHLY_LIMIT}). It resets on the 1st.`,
+        used: currentCount, limit: MONTHLY_LIMIT,
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

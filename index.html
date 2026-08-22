@@ -405,7 +405,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       </div>
       <div style="margin-top:28px;padding-top:20px;border-top:0.5px solid var(--border)">
         <div style="font-size:12px;color:var(--text3);margin-bottom:6px">SIGNED IN AS</div>
-        <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:16px"></div>
+        <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:12px"></div>
+        <div id="usage-line" style="font-size:12px;color:var(--text3);margin-bottom:16px"></div>
         <button onclick="logout()" style="width:100%;padding:12px;border-radius:12px;background:transparent;color:var(--urgent);border:1px solid var(--border2);font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">Sign out</button>
         <button onclick="deleteAccount()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;background:var(--urgent-light);color:var(--urgent);border:1px solid var(--urgent);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer">🗑 Delete account &amp; all data</button>
       </div>
@@ -575,6 +576,24 @@ function showToast(msg){
   if(!t)return;
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function showLimitBanner(msg){
+  let b=document.getElementById('limit-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='limit-banner';
+    b.style.cssText='position:absolute;top:0;left:0;right:0;z-index:600;background:var(--urgent);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 12px) 20px 12px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,0.25)';
+    document.body.appendChild(b);
+  }
+  b.innerHTML=`<span>⚠️ ${msg}</span><span onclick="document.getElementById('limit-banner').remove()" style="cursor:pointer;font-size:16px;line-height:1;flex-shrink:0">✕</span>`;
+}
+
+async function checkUsage(){
+  try{
+    const d=await claudeCall({usageCheck:true});
+    return d; // {used, limit, remaining}
+  }catch{return null}
 }
 
 function switchTab(tab){
@@ -1157,7 +1176,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
         messages:[{role:'user',content:`Title: ${title}\nNote: ${body}`}]
       });
     if(d.error==='monthly_limit_reached'){
-      showToast(d.message||'Monthly extraction limit reached');
+      showLimitBanner(d.message||'Monthly extraction limit reached');
       aiStatus.style.display='none';
       return;
     }
@@ -1484,6 +1503,16 @@ function openReviewSettings(){
   const emailEl=document.getElementById('account-email');
   if(emailEl&&currentUser)emailEl.textContent=currentUser.email;
   refreshNotifBtn();
+  const usageEl=document.getElementById('usage-line');
+  if(usageEl){
+    usageEl.textContent='Checking usage…';
+    checkUsage().then(u=>{
+      if(!u||!usageEl)return;
+      const pct=u.used/u.limit;
+      const color=pct>=1?'var(--urgent)':pct>=0.8?'var(--priority)':'var(--text3)';
+      usageEl.innerHTML=`<span style="color:${color}">${u.used} / ${u.limit}</span> note extractions used this month`;
+    });
+  }
 }
 
 
