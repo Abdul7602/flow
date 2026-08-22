@@ -3,6 +3,10 @@
 // Deploy: supabase functions deploy claude-proxy
 // The ANTHROPIC_API_KEY is set as a secret in Supabase,
 // never exposed to the frontend.
+//
+// Includes a monthly per-user extraction cap to protect
+// against runaway API costs (one bad actor or bug can't
+// drain the account). Adjust MONTHLY_LIMIT below anytime.
 // ═══════════════════════════════════════════════════
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -13,14 +17,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const MONTHLY_LIMIT = 300 // extractions per user per month
+
 Deno.serve(async (req) => {
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // ── 1. Verify the user is logged in ──
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Not authenticated' }), {
@@ -43,10 +47,34 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ── 2. Forward the request to Claude ──
+    // ── Check + increment monthly usage ──
+    const nowMonth = new Date().toISOString().slice(0, 7)
+
+    const { data: settings } = await supabase
+      .from('settings')
+      .select('parse_count, parse_month')
+      .eq('user_id', user.id)
+      .single()
+
+    const currentCount = settings?.parse_month === nowMonth ? (settings?.parse_count || 0) : 0
+
+    if (currentCount >= MONTHLY_LIMIT) {
+      return new Response(JSON.stringify({
+        error: 'monthly_limit_reached',
+        message: `You've reached this month's extraction limit (${MONTHLY_LIMIT}). It resets on the 1st.`,
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    supabase.from('settings')
+      .update({ parse_count: currentCount + 1, parse_month: nowMonth })
+      .eq('user_id', user.id)
+      .then(() => {})
+
     const body = await req.json()
 
-    // Only allow the fields we expect — no arbitrary passthrough
     const claudePayload = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: Math.min(body.max_tokens || 600, 1000),
