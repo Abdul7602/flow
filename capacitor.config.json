@@ -1,0 +1,25 @@
+{
+  "appId": "com.flowdaily.app",
+  "appName": "Flow",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#000000",
+    "preferredContentMode": "mobile"
+  },
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#000000"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#000000"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "flow-app",
+  "version": "1.0.0",
+  "description": "Flow — write naturally, your day connects itself",
+  "scripts": {
+    "sync": "npx cap sync"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  }
+}
