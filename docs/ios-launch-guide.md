@@ -73,14 +73,25 @@ This covers everything from here to TestFlight and the App Store, written for a 
 
 ## What's still missing (do before public submission)
 
-**Native push notification delivery.** The app now *registers* for native push and stores a device token in `push_subscriptions` (tagged `{native: true, platform: 'ios', token: ...}`). But `send-review-push` (the Edge Function that fires the daily reminder) currently only knows how to send **Web Push** — it does not yet send to APNs.
+**Native push notification delivery — code is READY, just needs 3 secrets.** The app registers for native push and stores a device token in `push_subscriptions` (tagged `{native: true, platform: 'ios', token: ...}`). The `send-review-push` Edge Function already contains the full APNs-sending logic (JWT signing, HTTP/2 delivery, dead-token cleanup) — it's just inactive until three secrets exist, because Apple only issues the required key after your Developer account is approved.
 
-To finish this:
-1. In Apple Developer → **Certificates, Identifiers & Profiles → Keys** → create an **APNs Auth Key** (.p8 file) — needs your Apple Developer account to exist first
-2. Update `send-review-push` to check `subscription.native` — if true, send via APNs HTTP/2 API using that key, instead of `webpush.sendNotification`
-3. This is a contained, well-defined addition — flag it and we'll build it once your Apple account is live and the .p8 key exists
+**Once your Apple Developer account is active, do this (10 minutes):**
 
-**Until then:** the review push will simply not reach the native app (it'll silently do nothing for native subscribers) — but everything else (extraction, sync, login, UI) works fully in the TestFlight build already.
+1. Go to **developer.apple.com/account → Certificates, Identifiers & Profiles → Keys**
+2. Click **+** → name it e.g. `Flow APNs Key` → check **Apple Push Notifications service (APNs)** → Continue → Register
+3. **Download the `.p8` file immediately** — Apple only lets you download it once, ever. If you lose it you must generate a new key.
+4. Note the **Key ID** shown on that page (10-character code)
+5. Note your **Team ID** — top-right of the developer portal, or **Membership Details** page (also 10 characters)
+6. Open the downloaded `.p8` file in a text editor — copy its full contents (including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines)
+7. In Supabase → Edge Functions → **Secrets**, add:
+   - `APNS_AUTH_KEY` = the full contents of the .p8 file
+   - `APNS_KEY_ID` = the Key ID from step 4
+   - `APNS_TEAM_ID` = the Team ID from step 5
+8. Redeploy `send-review-push` (Edge Functions → send-review-push → Deploy, no code change needed — just picks up the new secrets)
+
+That's it — native push notifications go live the moment those three secrets are saved. No other code changes needed; this was all built in advance.
+
+**Until those secrets exist:** native subscribers are silently skipped (no error, no crash) — Web Push subscribers (browser/PWA) continue working exactly as before, completely unaffected.
 
 ---
 
