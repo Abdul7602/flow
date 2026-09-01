@@ -71,7 +71,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .tab.active{display:flex}
 
 /* HEADERS — large iOS-style */
-.header{padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 8px;flex-shrink:0;background:var(--bg)}
+.header{padding:max(env(safe-area-inset-top,0px) + 18px, 40px) 20px 8px;flex-shrink:0;background:var(--bg)}
 .header-row{display:flex;align-items:flex-end;justify-content:space-between}
 .header-title{font-size:34px;font-weight:700;letter-spacing:-0.5px;line-height:1}
 .header-sub{font-size:13px;color:var(--text2-60);margin-top:3px}
@@ -125,7 +125,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 /* ── NOTE EDITOR ── */
 .note-editor{display:none;flex-direction:column;flex:1;overflow:hidden;background:var(--surface)}
 .note-editor.open{display:flex}
-.editor-header{padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 10px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:0.5px solid var(--border);flex-shrink:0}
+.editor-header{padding:max(env(safe-area-inset-top,0px) + 12px, 34px) 16px 10px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:0.5px solid var(--border);flex-shrink:0}
 .back-btn{font-size:16px;color:var(--text);cursor:pointer;font-weight:400;border:none;background:none;font-family:var(--font);display:flex;align-items:center;gap:2px}
 .editor-priority-row{display:flex;gap:6px}
 .priority-chip{font-size:12px;padding:4px 11px;border-radius:14px;cursor:pointer;border:1px solid var(--border2);background:transparent;font-family:var(--font);font-weight:400;color:var(--text2);transition:all 0.15s}
