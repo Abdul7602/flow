@@ -1699,7 +1699,7 @@ if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNoti
     await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
     await supa.from('push_subscriptions').insert({
       user_id:currentUser.id,
-      subscription:{native:true,platform:'ios',token:token.value}
+      subscription:{native:true,platform:(window.Capacitor.getPlatform?window.Capacitor.getPlatform():'ios'),token:token.value}
     });
     refreshNotifBtn();
   });

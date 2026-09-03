@@ -17,3 +17,12 @@ ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
 #   but not the Pods/build folders above
 
 .DS_Store
+
+# Android build artifacts
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+*.jks
+*.keystore

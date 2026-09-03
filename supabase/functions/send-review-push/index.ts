@@ -74,6 +74,34 @@ async function sendApns(deviceToken: string, title: string, body: string): Promi
   return { ok: false }
 }
 
+
+// ── Android native app (Firebase Cloud Messaging) ──
+// Requires a Firebase project + FCM_SERVER_KEY secret — see docs/android-launch-guide.md.
+// Inactive (silently skipped) until that secret is set, same pattern as APNs.
+async function sendFcm(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
+  const serverKey = Deno.env.get('FCM_SERVER_KEY')
+  if (!serverKey) return { ok: false } // FCM not configured yet — skip quietly
+
+  const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `key=${serverKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: deviceToken,
+      notification: { title, body, sound: 'default' },
+      priority: 'high',
+    }),
+  })
+
+  const data = await res.json().catch(() => ({}))
+  if (data.success === 1) return { ok: true }
+  const err = data.results?.[0]?.error
+  if (err === 'NotRegistered' || err === 'InvalidRegistration') return { ok: false, shouldDelete: true }
+  return { ok: false }
+}
+
 Deno.serve(async (_req) => {
   try {
     const supabase = createClient(
@@ -135,8 +163,15 @@ Deno.serve(async (_req) => {
       for (const row of subs || []) {
         const sub = row.subscription as any
 
-        if (sub?.native && sub?.token) {
-          // ── Native iOS app (APNs) ──
+        if (sub?.native && sub?.token && sub?.platform === 'android') {
+          // ── Native Android app (FCM) ──
+          const result = await sendFcm(sub.token, title, body)
+          if (result.ok) sent++
+          if (result.shouldDelete) {
+            await supabase.from('push_subscriptions').delete().eq('id', row.id)
+          }
+        } else if (sub?.native && sub?.token) {
+          // ── Native iOS app (APNs) — default for any other native platform value ──
           const result = await sendApns(sub.token, title, body)
           if (result.ok) sent++
           if (result.shouldDelete) {

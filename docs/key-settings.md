@@ -59,6 +59,15 @@ One place to find every number/value in Flow that might need changing later, why
 
 ---
 
+## 6b. FCM secret (Android native push delivery)
+
+**What:** the value that lets `send-review-push` deliver notifications to the native Android app.
+**Current value:** not yet set — feature is code-complete but inactive until this exists
+**Where:** Supabase → Edge Functions → Secrets → `FCM_SERVER_KEY`
+**How to set it:** full walkthrough in `docs/android-launch-guide.md` — needs a free Firebase project first.
+
+---
+
 ## 7. Domain & email sender
 
 **What:** the domain Flow is served from, and where login-code emails come from.
