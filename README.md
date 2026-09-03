@@ -8,6 +8,12 @@ Flow is an AI-powered personal productivity app that unifies notes, tasks, and c
 
 ---
 
+<p align="center">
+  <img src="images/Flow-note.png" alt="Flow Timeline Concept" width="100%">
+</p>
+
+---
+
 ## Status
 
 - ✅ **Live, multi-user, in production** as an installable PWA (iOS + Android)
