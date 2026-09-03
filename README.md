@@ -16,9 +16,9 @@ Flow is an AI-powered personal productivity app that unifies notes, tasks, and c
 
 ## Status
 
-- ✅ **Live, multi-user, in production** as an installable PWA (iOS + Android)
-- ✅ **iOS native app wrapped** (Capacitor) — in TestFlight/App Store submission process
-- ⬜ Android native app (Play Store) — planned once broader testing is done
+- ✅ **Live, multi-user, in production** as an installable PWA — verified working on both iOS and Android real hardware
+- ✅ **iOS native app wrapped** (Capacitor) — Apple Developer account enrolled, verification pending
+- ✅ **Android native app wrapped** (Capacitor) — buildable and testable locally, Play Store submission next
 - 📄 See `docs/` for setup guides and tunable settings
 
 ---
@@ -53,13 +53,14 @@ Flow is an AI-powered personal productivity app that unifies notes, tasks, and c
 
 ## Stack
 
-- **Frontend** — Single self-contained HTML/JS file, wrapped natively for iOS via **Capacitor**
+- **Frontend** — Single self-contained HTML/JS file, wrapped natively for iOS and Android via **Capacitor**
 - **Backend** — **Supabase**: PostgreSQL (with Row Level Security), Auth (magic link + OTP), Edge Functions
 - **AI** — Claude API (Haiku 4.5) via a secure Edge Function proxy — the API key never touches the client
 - **Email** — Resend, sending from a verified custom domain
 - **Hosting** — GitHub Pages, served through a custom domain (Cloudflare DNS)
-- **Push** — Web Push (VAPID) for browser/PWA, APNs for the native iOS app
+- **Push** — Web Push (VAPID) for browser/PWA, APNs for the native iOS app, FCM for the native Android app
 - **CI/CD (iOS)** — Codemagic (cloud Mac builds → TestFlight → App Store), since local development is Windows-only
+- **CI/CD (Android)** — builds locally via Android Studio, no cloud service needed
 
 ---
 
@@ -72,26 +73,29 @@ manifest.json                  PWA manifest
 privacy.html                   privacy policy page
 capacitor.config.json          native app wrapper config
 ios/                            generated Xcode project (Capacitor)
+android/                        generated Android Studio/Gradle project (Capacitor)
 www/                            web assets copied in for the native build
 codemagic.yaml                  cloud iOS build recipe
 supabase/functions/
   claude-proxy/                 secure AI extraction proxy + usage cap
-  send-review-push/             daily notification sender (Web Push + APNs)
+  send-review-push/             daily notification sender (Web Push + APNs + FCM)
   delete-account/                self-service account deletion
 supabase-*.sql                  database schema files (run in Supabase SQL Editor)
 docs/
   key-settings.md                quick-reference for every tunable value
   usage-cap.md                    how to adjust the AI cost cap
   ios-launch-guide.md             full path from Apple enrollment to App Store
+  android-launch-guide.md         full path from Android Studio to Play Store
 ```
 
 ---
 
 ## Roadmap
 
-- [ ] Native push fully wired end-to-end (code is done — waiting on Apple Developer account approval to generate APNs credentials)
+- [ ] iOS native push fully wired end-to-end (code is done — waiting on Apple Developer account approval to generate APNs credentials)
+- [ ] Android native push fully wired end-to-end (code is done — waiting on a Firebase project to generate the FCM secret)
 - [ ] App Store submission
-- [ ] Play Store submission (Android device now available for testing)
+- [ ] Play Store submission
 - [ ] Deferred: "Flow Memory" — ask questions across all your notes
 - [ ] Deferred: image-based task extraction (attach a photo, extract tasks from it)
 - [ ] Deferred: smart trip clustering (batch same-location tasks)
@@ -103,6 +107,8 @@ docs/
 Open `index.html` directly, or serve the repo root with any static server. The app talks to a live Supabase backend — there is no separate local backend to run. AI extraction requires the Supabase Edge Functions to be deployed with a valid Anthropic API key set as a secret.
 
 For the native iOS build: `npm install`, then `npx cap sync ios`, then build via Xcode or Codemagic (see `docs/ios-launch-guide.md`).
+
+For the native Android build: `npm install`, then `npx cap sync android`, then `npx cap open android` to build/run via Android Studio (see `docs/android-launch-guide.md`).
 
 ---
 
