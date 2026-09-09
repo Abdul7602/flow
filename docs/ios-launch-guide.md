@@ -42,15 +42,26 @@ This covers everything from here to TestFlight and the App Store, written for a 
 2. **Add application** → select the `Abdul7602/flow` repo
 3. Codemagic will detect `codemagic.yaml` in the repo automatically
 
-### Connect Codemagic to App Store Connect
-1. In Codemagic → **Teams → Integrations → App Store Connect**
-2. Follow their guide to create an **API Key** in App Store Connect (Users and Access → Keys → App Store Connect API) and upload it to Codemagic
-3. Name the integration `flow_app_store_connect` (must match `codemagic.yaml`)
+### Connect Codemagic to Apple
+
+**Note:** newer Codemagic UI has consolidated this into a single screen rather than separate "Apple Developer Portal" and "App Store Connect" integrations.
+
+1. In Codemagic → **Teams → Settings → Integrations** (or a similar path — look for "Apple Developer Portal integration")
+2. Create an **API Key** in App Store Connect first: **Users and Access → Keys → App Store Connect API** → Generate → **Access role: App Manager** → download the `.p8` file, note the **Key ID** and **Issuer ID**
+3. In Codemagic's integration screen, add the key (name it anything memorable, e.g. `codemagic-key`)
+4. **Whatever name you give it, that exact name must appear in `codemagic.yaml`** under `integrations: app_store_connect:` — the current repo value is `codemagic-key`. If you named yours differently, either rename it to match, or edit `codemagic.yaml` to match your name and push that change.
 
 ### Set up code signing
 1. Codemagic → your app → **Code signing → iOS**
-2. Easiest path: let Codemagic **automatically manage signing** — it can generate certificates and provisioning profiles for you once the App Store Connect integration above is linked
-3. Group name: `ios_signing` (matches `codemagic.yaml`)
+2. Easiest path: let Codemagic **automatically manage signing** — it can generate certificates and provisioning profiles for you once the integration above is linked
+3. **iOS certificates tab** → Generate a new certificate → type: **Apple Distribution** (not Apple Development — Distribution is required for TestFlight/App Store)
+4. **iOS provisioning profiles tab** → Fetch profiles (pulls existing ones) — if none exist yet, create one manually first in Apple Developer Portal (Profiles → + → App Store Connect type → select your App ID and the Distribution certificate → download → upload here)
+
+### Environment variable group (separate from code signing)
+`codemagic.yaml` also references an environment variable group called `ios_signing` (under `environment: groups:`). This is a different thing from the certificates/profiles above — it's Codemagic's mechanism for grouping secrets/variables for a build.
+1. Codemagic → your app → **Environment variables**
+2. Create a new group named exactly `ios_signing`
+3. It can be empty for now if code signing is fully automatic — this group existing (even without variables in it) is enough to stop the build from erroring on a missing group reference. Add variables here later if the build ever asks for a specific one by name.
 
 ---
 
