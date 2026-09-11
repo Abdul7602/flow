@@ -13,11 +13,14 @@
 //   APNS_KEY_ID     — the Key ID shown next to that key in Apple's portal
 //   APNS_TEAM_ID    — your Apple Developer Team ID (top right of the portal,
 //                     or Membership Details page)
+//   FCM_SERVICE_ACCOUNT — the full contents of the Firebase service account
+//                     JSON file (Project Settings → Service Accounts →
+//                     Generate new private key), pasted as one secret value
 // (SUPABASE_URL / SERVICE_ROLE_KEY are auto-injected)
 //
-// NOTE: APNs sending is INACTIVE until the three APNS_* secrets above
-// are set. Until then, native subscribers are silently skipped — Web
-// Push subscribers (browser/PWA) continue to work exactly as before.
+// NOTE: APNs and FCM sending are INACTIVE until their secrets above are
+// set. Until then, native subscribers on that platform are silently
+// skipped — Web Push subscribers (browser/PWA) continue to work.
 // ═══════════════════════════════════════════════════
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -75,30 +78,73 @@ async function sendApns(deviceToken: string, title: string, body: string): Promi
 }
 
 
-// ── Android native app (Firebase Cloud Messaging) ──
-// Requires a Firebase project + FCM_SERVER_KEY secret — see docs/android-launch-guide.md.
+// ── Android native app (Firebase Cloud Messaging — HTTP v1 API) ──
+// Uses a Firebase Service Account (not the deprecated Legacy server key).
+// Requires the FCM_SERVICE_ACCOUNT secret — see docs/android-launch-guide.md.
 // Inactive (silently skipped) until that secret is set, same pattern as APNs.
-async function sendFcm(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
-  const serverKey = Deno.env.get('FCM_SERVER_KEY')
-  if (!serverKey) return { ok: false } // FCM not configured yet — skip quietly
 
-  const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+let cachedFcmToken: { token: string; issuedAt: number } | null = null
+
+async function getFcmAccessToken(): Promise<{ token: string; projectId: string } | null> {
+  const raw = Deno.env.get('FCM_SERVICE_ACCOUNT')
+  if (!raw) return null // FCM not configured yet — skip quietly
+
+  const svc = JSON.parse(raw) as { client_email: string; private_key: string; project_id: string }
+
+  // reuse a cached Google OAuth2 access token for up to 50 minutes (tokens last 1hr)
+  if (cachedFcmToken && Date.now() - cachedFcmToken.issuedAt < 50 * 60 * 1000) {
+    return { token: cachedFcmToken.token, projectId: svc.project_id }
+  }
+
+  const privateKey = await importPKCS8(svc.private_key, 'RS256')
+  const assertion = await new SignJWT({ scope: 'https://www.googleapis.com/auth/firebase.messaging' })
+    .setProtectedHeader({ alg: 'RS256' })
+    .setIssuer(svc.client_email)
+    .setAudience('https://oauth2.googleapis.com/token')
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(privateKey)
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  })
+  const tokenData = await tokenRes.json()
+  if (!tokenData.access_token) return null
+
+  cachedFcmToken = { token: tokenData.access_token, issuedAt: Date.now() }
+  return { token: tokenData.access_token, projectId: svc.project_id }
+}
+
+async function sendFcm(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
+  const auth = await getFcmAccessToken()
+  if (!auth) return { ok: false } // FCM not configured yet — skip quietly
+
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${auth.projectId}/messages:send`, {
     method: 'POST',
     headers: {
-      'Authorization': `key=${serverKey}`,
+      'Authorization': `Bearer ${auth.token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      to: deviceToken,
-      notification: { title, body, sound: 'default' },
-      priority: 'high',
+      message: {
+        token: deviceToken,
+        notification: { title, body },
+        android: { priority: 'high', notification: { sound: 'default' } },
+      },
     }),
   })
 
+  if (res.status === 200) return { ok: true }
   const data = await res.json().catch(() => ({}))
-  if (data.success === 1) return { ok: true }
-  const err = data.results?.[0]?.error
-  if (err === 'NotRegistered' || err === 'InvalidRegistration') return { ok: false, shouldDelete: true }
+  const status = data?.error?.status
+  if (status === 'NOT_FOUND' || status === 'UNREGISTERED' || status === 'INVALID_ARGUMENT') {
+    return { ok: false, shouldDelete: true }
+  }
   return { ok: false }
 }
 

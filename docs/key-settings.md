@@ -63,7 +63,7 @@ One place to find every number/value in Flow that might need changing later, why
 
 **What:** the value that lets `send-review-push` deliver notifications to the native Android app.
 **Current value:** not yet set — feature is code-complete but inactive until this exists
-**Where:** Supabase → Edge Functions → Secrets → `FCM_SERVER_KEY`
+**Where:** Supabase → Edge Functions → Secrets → `FCM_SERVICE_ACCOUNT` (full JSON contents of a Firebase service account key — uses the modern HTTP v1 API, not the deprecated Legacy server key)
 **How to set it:** full walkthrough in `docs/android-launch-guide.md` — needs a free Firebase project first.
 
 ---

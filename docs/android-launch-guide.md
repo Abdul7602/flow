@@ -59,14 +59,15 @@ Fill in the form (organization details, a password). **Save the resulting `.jks`
 
 ## Step 5 — Native push notifications (Firebase / FCM)
 
-Android's push system is different from iOS's — it goes through **Firebase Cloud Messaging**, not a direct APNs-style key.
+Android's push system is different from iOS's — it goes through **Firebase Cloud Messaging**, using the modern **HTTP v1 API** (the older "Legacy" key method is deprecated by Google and can be unreliable to even access now).
 
 1. Go to **console.firebase.google.com** → Create a project (free) → name it `Flow` or similar
-2. **Project settings → Cloud Messaging** → find your **Server key** (may be labeled "Legacy server key" — that's fine, it still works with the simple API our backend uses)
-3. Also from Firebase: **Project settings → General → Add app → Android** → package name `com.flowdaily.app` → download **`google-services.json`**
-4. Place that file at `android/app/google-services.json` in the project
-5. In Supabase → Edge Functions → Secrets, add: `FCM_SERVER_KEY` = the server key from step 2
-6. Redeploy `send-review-push` (no code change needed — the FCM-sending code is already written and waiting, same pattern as APNs)
+2. From Firebase: **Project settings → General → Add app → Android** → package name `com.flowdaily.app` → download **`google-services.json`**
+3. Place that file at `android/app/google-services.json` in the project
+4. **Project settings → Service Accounts tab** → **Generate new private key** → downloads a `.json` file (this is a real credential — handle it like a password)
+5. Open that downloaded file in a text editor, copy its **entire contents** (the whole JSON object)
+6. In Supabase → Edge Functions → Secrets, add: `FCM_SERVICE_ACCOUNT` = paste the entire JSON contents as the value
+7. Redeploy `send-review-push` (no code change needed — the FCM-sending code already uses this modern approach, following the same JWT-based pattern as the APNs code for iOS)
 
 Once that secret exists, Android push notifications go live immediately.
 
