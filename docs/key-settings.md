@@ -86,6 +86,33 @@ One place to find every number/value in Flow that might need changing later, why
 
 ---
 
+## 8b. Premium monthly extraction limit
+
+**What:** the higher AI-extraction cap given to active/trial subscribers (vs the free tier's 300/month).
+**Current value:** `PREMIUM_MONTHLY_LIMIT = 3000` per subscriber/month
+**Where:** `supabase/functions/claude-proxy/index.ts`
+**How to change:** edit the number → Deploy. No schema change needed.
+
+---
+
+## 8c. RevenueCat keys and entitlement ID
+
+**What:** the public SDK keys that let the app fetch subscription offerings and process purchases, and the entitlement identifier that determines "is this user premium."
+**Current value:** placeholders (`REPLACE_WITH_IOS_PUBLIC_SDK_KEY` etc.) — not yet configured
+**Where:** `index.html` — `REVENUECAT_API_KEY_IOS`, `REVENUECAT_API_KEY_ANDROID`, `PREMIUM_ENTITLEMENT_ID`
+**How to set them:** full walkthrough in `docs/subscriptions-setup.md` — needs a RevenueCat account first.
+
+---
+
+## 8d. RevenueCat webhook secret
+
+**What:** shared secret that verifies incoming subscription-event calls genuinely came from RevenueCat.
+**Current value:** not yet set
+**Where:** Supabase → Edge Functions → Secrets → `REVENUECAT_WEBHOOK_SECRET` (must match the value entered in RevenueCat's webhook config)
+**How to set it:** full walkthrough in `docs/subscriptions-setup.md`.
+
+---
+
 ## 9. Apple's revenue cut
 
 **What:** the percentage Apple takes from any in-app purchases/subscriptions.

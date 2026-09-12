@@ -17,7 +17,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const MONTHLY_LIMIT = 300 // extractions per user per month
+const FREE_MONTHLY_LIMIT = 300     // extractions per user per month — free tier
+const PREMIUM_MONTHLY_LIMIT = 3000 // extractions per user per month — active subscribers (generous, not unlimited, still cost-protected)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -47,14 +48,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ── Check + increment monthly usage ──
+    // ── Check subscription status + monthly usage ──
     const nowMonth = new Date().toISOString().slice(0, 7)
 
     const { data: settings } = await supabase
       .from('settings')
-      .select('parse_count, parse_month')
+      .select('parse_count, parse_month, subscription_status, subscription_expires_at')
       .eq('user_id', user.id)
       .single()
+
+    // an active/trial subscriber gets the premium limit, but only while genuinely
+    // still within their paid period (defends against a stale status if a webhook
+    // was ever missed) — expired/cancelled/free all fall back to the free limit
+    const now = new Date()
+    const stillEntitled = (settings?.subscription_status === 'active' || settings?.subscription_status === 'trial')
+      && (!settings?.subscription_expires_at || new Date(settings.subscription_expires_at) > now)
+    const MONTHLY_LIMIT = stillEntitled ? PREMIUM_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
 
     const currentCount = settings?.parse_month === nowMonth ? (settings?.parse_count || 0) : 0
 
@@ -63,14 +72,17 @@ Deno.serve(async (req) => {
     if (bodyPeek.usageCheck) {
       return new Response(JSON.stringify({
         used: currentCount, limit: MONTHLY_LIMIT, remaining: Math.max(0, MONTHLY_LIMIT - currentCount),
+        subscribed: stillEntitled,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     if (currentCount >= MONTHLY_LIMIT) {
       return new Response(JSON.stringify({
         error: 'monthly_limit_reached',
-        message: `You've reached this month's extraction limit (${MONTHLY_LIMIT}). It resets on the 1st.`,
-        used: currentCount, limit: MONTHLY_LIMIT,
+        message: stillEntitled
+          ? `You've reached this month's extraction limit (${MONTHLY_LIMIT}). It resets on the 1st.`
+          : `You've reached the free plan's monthly limit (${MONTHLY_LIMIT}). Upgrade to Flow Premium for a much higher limit.`,
+        used: currentCount, limit: MONTHLY_LIMIT, subscribed: stillEntitled,
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
