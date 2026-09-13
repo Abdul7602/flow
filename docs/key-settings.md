@@ -89,9 +89,14 @@ One place to find every number/value in Flow that might need changing later, why
 ## 8b. Premium monthly extraction limit
 
 **What:** the higher AI-extraction cap given to active/trial subscribers (vs the free tier's 300/month).
-**Current value:** `PREMIUM_MONTHLY_LIMIT = 3000` per subscriber/month
+**Current value:** `PREMIUM_MONTHLY_LIMIT = 900` per subscriber/month
 **Where:** `supabase/functions/claude-proxy/index.ts`
 **How to change:** edit the number → Deploy. No schema change needed.
+
+**Why 900 specifically — the math behind this number:**
+At Claude Haiku 4.5 pricing (~$0.002/extraction worst case), 900 extractions costs ~€1.80 in raw AI usage if a subscriber uses every single one in a month. At a €3.99/month subscription price, after Apple/Google's 15% cut (~€0.60), net revenue is ~€3.39 — leaving a **guaranteed profit floor of ~€1.59/subscriber/month even in the absolute worst case**. Real average usage is far lower than 900/month for almost all users, so typical profit per subscriber is closer to €3/month. This was chosen over a higher number (e.g. 3000) specifically because 3000 could have gone *negative* for a heavy user (3000 × €0.002 = €6 cost vs €3.39 net revenue) — 900 removes that risk entirely while still being 3x the free tier.
+
+**Yearly subscribers get the same 900/month** — the yearly plan is priced as a discount for paying annually, not a different usage tier. If yearly is priced at roughly 10x monthly (a ~17% discount, standard SaaS practice) e.g. €34.99/year for a €3.99/month plan, the same per-month profit math applies since usage resets monthly regardless of billing frequency.
 
 ---
 

@@ -85,7 +85,7 @@ RevenueCat doesn't create the subscription itself — it reads products you've a
 1. Use each store's **sandbox/test purchase** mode (Apple: TestFlight sandbox tester account; Google: a test account added in Play Console's license testing) to make a real (fake-money) purchase
 2. Confirm in Supabase → Table Editor → `settings` that your test user's `subscription_status` flips to `active`
 3. In the app, open settings — should now show "⚡ Premium" and hide the upgrade button
-4. Confirm `claude-proxy`'s usage cap raised to 3000 for that user (check via the usage-check response)
+4. Confirm `claude-proxy`'s usage cap raised to 900 for that user (check via the usage-check response)
 
 ---
 

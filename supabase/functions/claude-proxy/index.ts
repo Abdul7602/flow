@@ -18,7 +18,7 @@ const corsHeaders = {
 }
 
 const FREE_MONTHLY_LIMIT = 300     // extractions per user per month — free tier
-const PREMIUM_MONTHLY_LIMIT = 3000 // extractions per user per month — active subscribers (generous, not unlimited, still cost-protected)
+const PREMIUM_MONTHLY_LIMIT = 900 // extractions per user per month — active subscribers (3x free tier, guarantees profit floor even at full usage — see docs/key-settings.md)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {

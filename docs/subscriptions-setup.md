@@ -11,7 +11,7 @@ This covers connecting Flow's already-built paywall to real Apple/Google billing
 - `@revenuecat/purchases-capacitor` installed and synced into both iOS and Android native projects
 - Paywall UI in the app (settings → "⚡ Upgrade to Premium")
 - Automatic prompt to upgrade when a free user hits their monthly AI extraction limit
-- Backend: `claude-proxy` already checks subscription status and gives active/trial subscribers a **10x higher** monthly limit (3000 vs 300)
+- Backend: `claude-proxy` already checks subscription status and gives active/trial subscribers a **3x higher** monthly limit (900 vs 300)
 - Backend: `revenuecat-webhook` Edge Function ready to receive subscription events and keep Supabase in sync
 - Settings screen shows "⚡ Premium" badge and thank-you message once subscribed
 
