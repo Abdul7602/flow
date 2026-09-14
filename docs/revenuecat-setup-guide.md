@@ -50,7 +50,7 @@ RevenueCat doesn't create the subscription itself — it reads products you've a
 ## Step 4 — Import your products into RevenueCat
 
 1. RevenueCat → Products → should auto-detect `flow_premium_monthly` from both stores once connected (may take a few minutes after creating them in each store)
-2. Create an **Entitlement** called exactly `premium` (this must match `PREMIUM_ENTITLEMENT_ID` in `index.html`)
+2. Create an **Entitlement** called exactly `flow_daily_pro` (this must match `PREMIUM_ENTITLEMENT_ID` in `index.html`)
 3. Attach both platform products to that one entitlement
 4. Create an **Offering** (RevenueCat's term for "what the paywall shows") containing that package — name it `default`
 

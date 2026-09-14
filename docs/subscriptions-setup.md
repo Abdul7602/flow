@@ -35,7 +35,7 @@ You need to create the **actual product** in App Store Connect AND Google Play C
 
 ### 4. Create an Entitlement
 1. RevenueCat → **Entitlements** → **+ New**
-2. Identifier: `premium` (must match exactly — this is hardcoded in Flow's code as `PREMIUM_ENTITLEMENT_ID`)
+2. Identifier: `flow_daily_pro` (must match exactly — this is hardcoded in Flow's code as `PREMIUM_ENTITLEMENT_ID`)
 3. Attach your subscription product to this entitlement
 
 ### 5. Create an Offering
