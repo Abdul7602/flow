@@ -4,13 +4,13 @@ One place to find every number/value in Flow that might need changing later, why
 
 ---
 
-## 1. Monthly extraction limit (cost control)
+## 1. Free tier monthly extraction limit (cost control)
 
-**What:** caps how many AI note-extractions each user can run per month.
-**Current value:** `300` per user/month
-**Where:** `supabase/functions/claude-proxy/index.ts` → `const MONTHLY_LIMIT = 300`
+**What:** caps how many AI note-extractions a free (non-subscriber) user can run per month.
+**Current value:** `FREE_MONTHLY_LIMIT = 75` per user/month
+**Where:** `supabase/functions/claude-proxy/index.ts`
 **How to change:** edit the number → Deploy in Supabase dashboard. No other files need touching.
-**Full detail:** see `docs/usage-cap.md`
+**Full detail:** see `docs/usage-cap.md` (note: that doc's worked example still shows the old `300` value/variable name as a historical illustration of the cost-per-extraction math — the math itself still applies, just substitute the current number)
 
 ---
 
@@ -88,7 +88,7 @@ One place to find every number/value in Flow that might need changing later, why
 
 ## 8b. Premium monthly extraction limit
 
-**What:** the higher AI-extraction cap given to active/trial subscribers (vs the free tier's 300/month).
+**What:** the higher AI-extraction cap given to active/trial subscribers (vs the free tier's 75/month).
 **Current value:** `PREMIUM_MONTHLY_LIMIT = 900` per subscriber/month
 **Where:** `supabase/functions/claude-proxy/index.ts`
 **How to change:** edit the number → Deploy. No schema change needed.

@@ -17,7 +17,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const FREE_MONTHLY_LIMIT = 300     // extractions per user per month — free tier
+const FREE_MONTHLY_LIMIT = 75      // extractions per user per month — free tier (permanent, resets monthly; kept low enough that real daily use naturally hits premium)
 const PREMIUM_MONTHLY_LIMIT = 900 // extractions per user per month — active subscribers (3x free tier, guarantees profit floor even at full usage — see docs/key-settings.md)
 
 Deno.serve(async (req) => {
