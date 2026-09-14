@@ -1687,6 +1687,7 @@ async function purchaseSubscriptionAt(index){
 }
 
 async function openPaywall(){
+  closeSettings(); // ensure only one bottom sheet is ever visible — prevents paywall opening hidden behind settings
   const modal=document.getElementById('paywall-modal');
   const body=document.getElementById('paywall-body');
   if(!modal||!body)return;
