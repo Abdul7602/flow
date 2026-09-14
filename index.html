@@ -1646,14 +1646,42 @@ async function getSubscriptionOfferings(){
   }catch(e){console.error('getOfferings error',e);return null}
 }
 
+// Directly sync Supabase's subscription_status the moment RevenueCat confirms
+// an active entitlement — client-side, immediate. This does NOT replace the
+// revenuecat-webhook (still needed for renewals/cancellations that happen
+// while the app is closed) but makes purchase/restore feel instant and work
+// correctly even if the webhook isn't configured yet.
+async function syncEntitlementToSupabase(entitlement){
+  if(!currentUser||!entitlement)return;
+  const status = entitlement.periodType==='TRIAL' ? 'trial' : 'active';
+  const expiresAt = entitlement.expirationDate || null; // ISO string or null (non-expiring)
+  await supa.from('settings')
+    .update({subscription_status:status, subscription_expires_at:expiresAt})
+    .eq('user_id',currentUser.id);
+}
+
 async function purchaseSubscription(pkg){
   try{
     const {Purchases} = window.Capacitor.Plugins;
     const result = await Purchases.purchasePackage({aPackage: pkg});
     const entitlement = result?.customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID];
     if(entitlement){
+      await syncEntitlementToSupabase(entitlement);
       showToast('Welcome to Flow Premium 🎉');
       closePaywall();
+      // refresh settings UI elements if they exist in the DOM, so the change is visible immediately
+      setTimeout(()=>{
+        const usageEl=document.getElementById('usage-line');
+        if(!usageEl)return;
+        checkUsage().then(u=>{
+          if(!u)return;
+          usageEl.innerHTML=`<span style="color:var(--text3)">${u.used} / ${u.limit}</span> note extractions used this month`;
+          const upgradeBtn=document.getElementById('upgrade-btn');
+          const premiumLine=document.getElementById('premium-status-line');
+          if(upgradeBtn)upgradeBtn.style.display=u.subscribed?'none':'block';
+          if(premiumLine)premiumLine.textContent=u.subscribed?'You have Flow Premium — thank you for supporting Flow 🧡':'';
+        });
+      },300);
       return true;
     }
     return false;
@@ -1669,8 +1697,13 @@ async function restorePurchases(){
     const {Purchases} = window.Capacitor.Plugins;
     const result = await Purchases.restorePurchases();
     const entitlement = result?.customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID];
-    if(entitlement){showToast('Subscription restored ✓');closePaywall()}
-    else showToast('No active subscription found');
+    if(entitlement){
+      await syncEntitlementToSupabase(entitlement);
+      showToast('Subscription restored ✓');
+      closePaywall();
+    }else{
+      showToast('No active subscription found');
+    }
   }catch(e){showToast('Could not restore: '+(e.message||'try again').slice(0,40))}
 }
 
