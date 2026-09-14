@@ -1674,6 +1674,18 @@ async function restorePurchases(){
   }catch(e){showToast('Could not restore: '+(e.message||'try again').slice(0,40))}
 }
 
+// packages fetched for the currently-open paywall, referenced by index
+// (never embed the raw package object in HTML — RevenueCat packages are
+// large, deeply-nested objects and embedding them as inline onclick JSON
+// is fragile and can silently fail to fire on real devices)
+let currentPaywallPackages=[];
+
+async function purchaseSubscriptionAt(index){
+  const pkg=currentPaywallPackages[index];
+  if(!pkg)return;
+  await purchaseSubscription(pkg);
+}
+
 async function openPaywall(){
   const modal=document.getElementById('paywall-modal');
   const body=document.getElementById('paywall-body');
@@ -1713,13 +1725,14 @@ async function openPaywall(){
     const bYear=/year|annual/i.test(b.identifier+b.product.title);
     return (bYear?1:0)-(aYear?1:0);
   });
+  currentPaywallPackages=packages; // store for safe index-based lookup on tap
 
   const packagesHTML=packages.map((pkg,i)=>{
     const isYearly=/year|annual/i.test(pkg.identifier+pkg.product.title);
     const badge=isYearly?`<div style="position:absolute;top:-9px;right:14px;background:var(--today);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;letter-spacing:0.02em">BEST VALUE</div>`:'';
     return`<div style="position:relative">
       ${badge}
-      <button onclick='purchaseSubscription(${JSON.stringify(pkg).replace(/'/g,"&apos;")})' style="width:100%;text-align:left;padding:16px;border-radius:14px;border:1.5px solid ${isYearly?'var(--today)':'var(--border2)'};background:${isYearly?'var(--priority-light)':'var(--surface)'};margin-bottom:10px;cursor:pointer;font-family:var(--font)">
+      <button onclick="purchaseSubscriptionAt(${i})" style="width:100%;text-align:left;padding:16px;border-radius:14px;border:1.5px solid ${isYearly?'var(--today)':'var(--border2)'};background:${isYearly?'var(--priority-light)':'var(--surface)'};margin-bottom:10px;cursor:pointer;font-family:var(--font)">
         <div style="font-size:16px;font-weight:600;color:var(--text)">${pkg.product.title||pkg.identifier}</div>
         <div style="font-size:13px;color:var(--text2-60);margin-top:2px">${pkg.product.priceString}${pkg.product.description?' · '+pkg.product.description:''}</div>
       </button>
