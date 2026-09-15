@@ -279,7 +279,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 <div class="auth-screen" id="auth-screen" style="display:none">
   <div class="auth-logo">Flow</div>
   <div class="auth-tag">Write naturally. Your day connects itself.</div>
-  <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email">
+  <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email" oninput="checkReviewerEmail()">
+  <!-- ⭐ REVIEWER-ONLY LOGIN — see docs/reviewer-access.md — delete this input, the JS block below, and the oninput above to fully remove ⭐ -->
+  <input class="auth-input" type="password" id="reviewer-password" placeholder="Password" autocomplete="current-password" style="display:none;margin-top:10px">
+  <!-- ⭐ END REVIEWER-ONLY LOGIN HTML ⭐ -->
   <button class="auth-btn" id="auth-btn" onclick="sendMagicLink()">Send magic link</button>
   <div id="otp-section" style="display:none;width:100%;margin-top:16px">
     <input class="auth-input" type="text" inputmode="numeric" id="auth-otp" placeholder="Code from email" maxlength="10" autocomplete="one-time-code" style="text-align:center;letter-spacing:0.3em;font-size:18px">
@@ -533,6 +536,41 @@ async function fetchAllData(){
 }
 
 // ═══ AUTH ═══════════════════════════════════════════
+
+// ⭐ REVIEWER-ONLY LOGIN (for app store review) — see docs/reviewer-access.md
+// Safe to delete this whole block (and the matching HTML block above) once
+// app review no longer needs it. Does not touch or weaken auth for any other
+// email — every other email always uses the normal OTP flow below, untouched.
+// The actual password is never stored in this code — only in Supabase's own
+// Auth system (set via dashboard) and in Play Console's private review notes.
+const REVIEWER_EMAIL='reviewer@flow-daily.com';
+function checkReviewerEmail(){
+  const email=document.getElementById('auth-email').value.trim().toLowerCase();
+  const pwField=document.getElementById('reviewer-password');
+  const btn=document.getElementById('auth-btn');
+  if(email===REVIEWER_EMAIL){
+    pwField.style.display='block';
+    btn.textContent='Sign in';
+    btn.onclick=reviewerSignIn;
+  }else{
+    pwField.style.display='none';
+    btn.textContent='Send magic link';
+    btn.onclick=sendMagicLink;
+  }
+}
+async function reviewerSignIn(){
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('reviewer-password').value;
+  const msg=document.getElementById('auth-msg');
+  const btn=document.getElementById('auth-btn');
+  if(!password){msg.textContent='Enter the password';return}
+  btn.disabled=true;btn.textContent='Signing in…';
+  const{error}=await supa.auth.signInWithPassword({email,password});
+  if(error){msg.textContent=error.message;msg.className='auth-msg';btn.disabled=false;btn.textContent='Sign in'}
+  // success handled by onAuthStateChange, same as normal login
+}
+// ⭐ END REVIEWER-ONLY LOGIN JS ⭐
+
 async function sendMagicLink(){
   const email=document.getElementById('auth-email').value.trim();
   const msg=document.getElementById('auth-msg');
