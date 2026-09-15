@@ -6,6 +6,8 @@ This covers connecting Flow's already-built paywall to real Apple/Google billing
 
 ---
 
+## Status: Android fully wired and verified working end-to-end. iOS intentionally deferred (pending the Codemagic build issue) — repeat steps 2-3 for iOS once that's resolved, everything else (entitlement, offering, keys structure) already supports both platforms.
+
 ## What's already built (code-complete, waiting on your account setup)
 
 - `@revenuecat/purchases-capacitor` installed and synced into both iOS and Android native projects
@@ -17,33 +19,33 @@ This covers connecting Flow's already-built paywall to real Apple/Google billing
 
 ## What you need to do
 
-### 1. Create a RevenueCat account
+### 1. Create a RevenueCat account ✅ DONE
 1. Go to **app.revenuecat.com** → sign up (free)
 2. Create a new project → name it `Flow`
 
-### 2. Connect your App Store Connect and Play Console
+### 2. Connect your App Store Connect and Play Console — ✅ Android DONE, ⬜ iOS pending (deferred)
 1. In RevenueCat → Project Settings → **Apps** → **+ New**
 2. Add an **iOS app**: paste your Bundle ID (`com.flowdaily.app`), and connect it to App Store Connect via an API key (similar process to the Codemagic one — App Store Connect → Users and Access → Keys)
 3. Add an **Android app**: paste your Package name (`com.flowdaily.app`), and upload your Google Play service account JSON (Play Console → Setup → API access → create/link a service account with the right permissions)
 
-### 3. Create your subscription products
-You need to create the **actual product** in App Store Connect AND Google Play Console first (matching price, e.g. €3.99/month with a 14-day free trial), **then** import them into RevenueCat:
+### 3. Create your subscription products — ✅ Android DONE (both Monthly and Yearly, published), ⬜ iOS pending
+You need to create the **actual product** in App Store Connect AND Google Play Console first (matching price, e.g. €4.99/month with a 14-day free trial), **then** import them into RevenueCat:
 
 - **App Store Connect** → your app → **Monetization → Subscriptions** → create a subscription group and a monthly subscription product
 - **Google Play Console** → your app → **Monetize → Subscriptions** → create the subscription (you may have already started this)
 - Back in RevenueCat → **Products** tab → it should detect these once connected, or you can manually add them by Product ID
 
-### 4. Create an Entitlement
+### 4. Create an Entitlement ✅ DONE
 1. RevenueCat → **Entitlements** → **+ New**
 2. Identifier: `flow_daily_pro` (must match exactly — this is hardcoded in Flow's code as `PREMIUM_ENTITLEMENT_ID`)
 3. Attach your subscription product to this entitlement
 
-### 5. Create an Offering
+### 5. Create an Offering ✅ DONE
 1. RevenueCat → **Offerings** → **+ New** → name it `default`
 2. Add a **Package** inside it (e.g. "Monthly") pointing to your subscription product
 3. Mark this offering as the **Current** offering — this is what the app fetches to show the paywall
 
-### 6. Get your public API keys
+### 6. Get your public API keys ✅ DONE
 1. RevenueCat → Project Settings → **API Keys**
 2. Copy the **iOS public SDK key** and the **Android public SDK key** (these are safe to embed client-side — same trust model as Supabase's anon key)
 3. In `index.html`, find these two lines near the top of the RevenueCat section and replace the placeholders:
@@ -53,14 +55,16 @@ You need to create the **actual product** in App Store Connect AND Google Play C
    ```
 4. Commit and push this change (a normal EDIT, same as any other code change)
 
-### 7. Set up the webhook (keeps Supabase in sync)
+### 7. Set up the webhook (keeps Supabase in sync) ✅ DONE — confirmed working (test event returned 200, real subscription events verified writing to Supabase)
 1. RevenueCat → Project Settings → **Integrations → Webhooks** → **+ Add**
 2. URL: `https://aqtnelbqkwtrbqbpzuut.supabase.co/functions/v1/revenuecat-webhook`
 3. Authorization header value: make up any secret string, e.g. a long random password
 4. In Supabase → Edge Functions → Secrets, add: `REVENUECAT_WEBHOOK_SECRET` = the exact same string
 5. Deploy the `revenuecat-webhook` function (Edge Functions → deploy new function → paste from `supabase/functions/revenuecat-webhook/index.ts`, JWT verification OFF since RevenueCat calls it directly, not a logged-in user)
 
-### 8. Run the subscription schema SQL
+**Important architecture note:** the app never writes its own `subscription_status` from the client — only this webhook (authenticated server-to-server via the shared secret) is trusted to do that. A client-side write was tried and reverted (EDIT no.55) because it would let a tampered client fake premium access without paying. After a purchase, the app instead **polls** briefly (up to ~12 seconds) waiting for this webhook to land, then updates the UI.
+
+### 8. Run the subscription schema SQL ✅ DONE — confirmed columns exist and hold real data
 Run `supabase-subscription-schema.sql` in the Supabase SQL Editor (adds `subscription_status`, `subscription_expires_at`, `revenuecat_user_id` columns to `settings`).
 
 ---
@@ -76,7 +80,7 @@ When Play Console asks *"Is any part of your app restricted?"* — answer **Yes*
 - **Account sign-in details** (Flow requires email login)
 - **Payments** (once subscriptions are live — one-time products, memberships, subscriptions)
 
-You'll need to provide test login instructions for the reviewer, since Flow uses passwordless email codes. Suggested approach: provide a dedicated test email (e.g. `reviewer@flow-daily.com`, easy since domain email routing is already set up) and explain in the "App access instructions" field that a one-time code is sent to it, which you'll monitor during the review window.
+You'll need to provide test login instructions for the reviewer, since Flow uses passwordless email codes. **`reviewer@flow-daily.com` is set up and active** (Cloudflare Email Routing → your personal inbox) — use this in the "App access instructions" field, explaining that a one-time code is sent to it, which you'll monitor during the review window.
 
 ---
 

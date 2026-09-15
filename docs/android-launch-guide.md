@@ -9,10 +9,13 @@ Android is simpler than iOS in almost every way — the build runs on your own W
 - ✅ Capacitor Android project wrapped (`android/` folder, Gradle project)
 - ✅ Package name: `com.flowdaily.app` (matches iOS bundle ID exactly)
 - ✅ Portrait orientation hard-locked natively (`android:screenOrientation="portrait"`)
+- ✅ `com.android.vending.BILLING` permission added (required for subscriptions to function at all)
 - ✅ Push notification permission declared, plugin wired
-- ⚠️ **Native push delivery (FCM) is code-complete but INACTIVE** — needs a Firebase project + one secret (see below)
-- ⬜ Signing keystore — not generated yet (do this before your first release build)
-- ⬜ Google Play Developer account — not enrolled yet
+- ✅ Native push delivery (FCM) — configured and confirmed working on real device
+- ✅ Signing keystore — generated and backed up
+- ✅ Google Play Developer account — enrolled and verified
+- ✅ Subscriptions (RevenueCat + Play Console) — fully wired and confirmed working end-to-end on Android; see `docs/subscriptions-setup.md`
+- ✅ Current versionCode: 8 (see git log / `android/app/build.gradle` for the latest — bump on every rebuild)
 
 ---
 
