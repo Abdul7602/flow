@@ -1646,18 +1646,30 @@ async function getSubscriptionOfferings(){
   }catch(e){console.error('getOfferings error',e);return null}
 }
 
-// Directly sync Supabase's subscription_status the moment RevenueCat confirms
-// an active entitlement — client-side, immediate. This does NOT replace the
-// revenuecat-webhook (still needed for renewals/cancellations that happen
-// while the app is closed) but makes purchase/restore feel instant and work
-// correctly even if the webhook isn't configured yet.
-async function syncEntitlementToSupabase(entitlement){
-  if(!currentUser||!entitlement)return;
-  const status = entitlement.periodType==='TRIAL' ? 'trial' : 'active';
-  const expiresAt = entitlement.expirationDate || null; // ISO string or null (non-expiring)
-  await supa.from('settings')
-    .update({subscription_status:status, subscription_expires_at:expiresAt})
-    .eq('user_id',currentUser.id);
+// Poll for the webhook's update rather than writing subscription_status
+// ourselves from the client. This is the secure design: only the
+// revenuecat-webhook (server-to-server, authenticated with a shared secret)
+// is ever allowed to change a user's subscription_status — a client-side
+// write would let anyone fake premium access by manipulating the app's JS.
+// The webhook typically fires within a few seconds of a real purchase, so
+// polling briefly gives an instant-feeling result without compromising security.
+async function pollForSubscriptionUpdate(maxAttempts=8,delayMs=1500){
+  for(let i=0;i<maxAttempts;i++){
+    await new Promise(r=>setTimeout(r,delayMs));
+    const u=await checkUsage();
+    if(u&&u.subscribed)return u;
+  }
+  return null; // webhook hasn't landed yet — UI will catch up next time settings opens
+}
+
+function refreshSettingsSubscriptionUI(u){
+  if(!u)return;
+  const usageEl=document.getElementById('usage-line');
+  const upgradeBtn=document.getElementById('upgrade-btn');
+  const premiumLine=document.getElementById('premium-status-line');
+  if(usageEl)usageEl.innerHTML=`<span style="color:var(--text3)">${u.used} / ${u.limit}</span> note extractions used this month`;
+  if(upgradeBtn)upgradeBtn.style.display=u.subscribed?'none':'block';
+  if(premiumLine)premiumLine.textContent=u.subscribed?'You have Flow Premium — thank you for supporting Flow 🧡':'';
 }
 
 async function purchaseSubscription(pkg){
@@ -1666,22 +1678,11 @@ async function purchaseSubscription(pkg){
     const result = await Purchases.purchasePackage({aPackage: pkg});
     const entitlement = result?.customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID];
     if(entitlement){
-      await syncEntitlementToSupabase(entitlement);
-      showToast('Welcome to Flow Premium 🎉');
+      showToast('Welcome to Flow Premium 🎉 (syncing…)');
       closePaywall();
-      // refresh settings UI elements if they exist in the DOM, so the change is visible immediately
-      setTimeout(()=>{
-        const usageEl=document.getElementById('usage-line');
-        if(!usageEl)return;
-        checkUsage().then(u=>{
-          if(!u)return;
-          usageEl.innerHTML=`<span style="color:var(--text3)">${u.used} / ${u.limit}</span> note extractions used this month`;
-          const upgradeBtn=document.getElementById('upgrade-btn');
-          const premiumLine=document.getElementById('premium-status-line');
-          if(upgradeBtn)upgradeBtn.style.display=u.subscribed?'none':'block';
-          if(premiumLine)premiumLine.textContent=u.subscribed?'You have Flow Premium — thank you for supporting Flow 🧡':'';
-        });
-      },300);
+      pollForSubscriptionUpdate().then(u=>{
+        if(u){refreshSettingsSubscriptionUI(u);showToast('Premium active ✓')}
+      });
       return true;
     }
     return false;
@@ -1698,9 +1699,11 @@ async function restorePurchases(){
     const result = await Purchases.restorePurchases();
     const entitlement = result?.customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID];
     if(entitlement){
-      await syncEntitlementToSupabase(entitlement);
-      showToast('Subscription restored ✓');
+      showToast('Restoring…');
       closePaywall();
+      const u=await pollForSubscriptionUpdate();
+      if(u){refreshSettingsSubscriptionUI(u);showToast('Subscription restored ✓')}
+      else showToast('Restored — may take a moment to sync');
     }else{
       showToast('No active subscription found');
     }
