@@ -75,7 +75,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .header-row{display:flex;align-items:flex-end;justify-content:space-between}
 .header-title{font-size:34px;font-weight:700;letter-spacing:-0.5px;line-height:1}
 .header-sub{font-size:13px;color:var(--text2-60);margin-top:3px}
-.icon-btn{width:34px;height:34px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;transition:all 0.15s}
+.icon-btn{width:34px;height:34px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;transition:all 0.15s;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .moon-wrap{position:relative;display:flex;align-items:center;justify-content:center}
 .moon-hint{position:absolute;bottom:calc(100% + 8px);right:0;background:var(--text);color:var(--accent-inv);font-size:11px;font-weight:500;padding:5px 10px;border-radius:10px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.2s;font-family:var(--font)}
 .moon-hint::after{content:'';position:absolute;top:100%;right:12px;border:5px solid transparent;border-top-color:var(--text)}
@@ -449,6 +449,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 </nav>
 
 <script>
+// ⭐ TEMPORARY iOS DEBUG ERROR BANNER — safe to delete this whole block once
+// iOS is stable and no longer needs debugging without Safari's remote inspector.
+// Shows any uncaught JS error or unhandled promise rejection directly on screen.
+(function(){
+  let errorBox=null;
+  function showError(msg){
+    if(!errorBox){
+      errorBox=document.createElement('div');
+      errorBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px 14px;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word';
+      document.body.appendChild(errorBox);
+    }
+    const line=document.createElement('div');
+    line.style.cssText='border-top:1px solid rgba(255,255,255,0.3);padding-top:6px;margin-top:6px';
+    line.textContent=msg;
+    errorBox.appendChild(line);
+  }
+  window.addEventListener('error',e=>showError('JS Error: '+e.message+' @ '+(e.filename||'')+':'+e.lineno));
+  window.addEventListener('unhandledrejection',e=>showError('Unhandled Promise Rejection: '+(e.reason&&e.reason.message||e.reason)));
+})();
+// ⭐ END TEMPORARY iOS DEBUG ERROR BANNER ⭐
+
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const now=new Date();
