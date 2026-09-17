@@ -13,6 +13,7 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.flowdaily.app"
+        APP_STORE_APPLE_ID: "6809710060"
         DEVELOPMENT_TEAM: "32U99TJCDY"
       xcode: latest
       node: latest
@@ -29,7 +30,7 @@ workflows:
       - name: Increment build number
         script: |
           cd ios/App
-          agvtool new-version -all $(($(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID") + 1))
+          agvtool new-version -all $(($(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID") + 1))
       - name: Build .ipa
         script: |
           xcode-project build-ipa \
