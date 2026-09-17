@@ -6,8 +6,9 @@ workflows:
     integrations:
       app_store_connect: codemagic-key
     environment:
-      groups:
-        - ios_signing
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.flowdaily.app
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
