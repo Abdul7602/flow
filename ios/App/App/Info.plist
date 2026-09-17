@@ -70,5 +70,7 @@
 	</array>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Flow sends you a daily evening reminder about tasks you haven't finished yet.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
