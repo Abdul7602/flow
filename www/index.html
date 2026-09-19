@@ -1896,18 +1896,23 @@ async function togglePush(){
     const state=await getPushState();
 
     if(isNativeApp()){
-      const{PushNotifications}=window.Capacitor.Plugins;
+      const plugins=window.Capacitor.Plugins||{};
+      const{PushNotifications}=plugins;
+      showToast('DEBUG: PushNotifications plugin = '+(PushNotifications?'found':'MISSING')); // ⭐ TEMP DEBUG — remove once notification bug is fixed
       if(state==='on'){
         if(sw)sw.classList.remove('on');
         if(currentUser)await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
         showToast('Notifications off');
       }else if(state==='off'){
         if(sw)sw.classList.add('on');
+        const checkResult=await PushNotifications.checkPermissions(); // ⭐ TEMP DEBUG
+        showToast('DEBUG: checkPermissions = '+JSON.stringify(checkResult)); // ⭐ TEMP DEBUG
         const perm=await PushNotifications.requestPermissions();
+        showToast('DEBUG: requestPermissions = '+JSON.stringify(perm)); // ⭐ TEMP DEBUG
         if(perm.receive==='granted'){
           await PushNotifications.register();
+          showToast('DEBUG: register() called, waiting for token…'); // ⭐ TEMP DEBUG
           // token arrives via the 'registration' listener set up at startup
-          showToast('You\'ll get your review reminder 🔔');
         }
       }
       return;
@@ -1953,17 +1958,24 @@ async function togglePush(){
 if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNotifications){
   const{PushNotifications}=window.Capacitor.Plugins;
   PushNotifications.addListener('registration',async token=>{
+    showToast('DEBUG: registration listener fired, token='+(token?.value?token.value.slice(0,12)+'…':'MISSING')); // ⭐ TEMP DEBUG
     if(!currentUser||!token?.value)return;
-    await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
-    await supa.from('push_subscriptions').insert({
-      user_id:currentUser.id,
-      subscription:{native:true,platform:(window.Capacitor.getPlatform?window.Capacitor.getPlatform():'ios'),token:token.value}
-    });
+    try{
+      await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
+      const{error:insErr}=await supa.from('push_subscriptions').insert({
+        user_id:currentUser.id,
+        subscription:{native:true,platform:(window.Capacitor.getPlatform?window.Capacitor.getPlatform():'ios'),token:token.value}
+      });
+      if(insErr){showToast('DEBUG: insert failed: '+insErr.message);throw insErr} // ⭐ TEMP DEBUG
+      showToast('DEBUG: token saved to Supabase ✓'); // ⭐ TEMP DEBUG
+    }catch(e){
+      showToast('DEBUG: registration listener error: '+(e.message||e)); // ⭐ TEMP DEBUG
+    }
     refreshNotifBtn();
   });
   PushNotifications.addListener('registrationError',err=>{
     console.error('native push registration error',err);
-    showToast('Could not enable notifications');
+    showToast('DEBUG: registrationError fired: '+JSON.stringify(err)); // ⭐ TEMP DEBUG
   });
 }
 document.addEventListener('click',e=>{
