@@ -41,4 +41,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         config.delegateClass = SceneDelegate.self
         return config
     }
+
+    // MARK: - Push Notifications
+    // These two methods are required for @capacitor/push-notifications to work at all.
+    // Without them, iOS has nowhere to deliver Apple's registration response (success
+    // or failure), so it's silently dropped before it can ever reach Capacitor's JS
+    // bridge — meaning the 'registration' and 'registrationError' events can never
+    // fire, no matter how long the app waits. This was missing entirely.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
 }
