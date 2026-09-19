@@ -6,7 +6,7 @@ This covers connecting Flow's already-built paywall to real Apple/Google billing
 
 ---
 
-## Status: Android fully wired and verified working end-to-end. iOS intentionally deferred (pending the Codemagic build issue) — repeat steps 2-3 for iOS once that's resolved, everything else (entitlement, offering, keys structure) already supports both platforms.
+## Status: Android fully wired and verified working end-to-end (real purchase tested, webhook confirmed). iOS: Codemagic pipeline now works, both subscription products created, RevenueCat connected, and a real sandbox purchase has been confirmed successful on TestFlight — not yet submitted for public App Store review. See docs/ios-launch-guide.md for the full current iOS status.
 
 ## What's already built (code-complete, waiting on your account setup)
 

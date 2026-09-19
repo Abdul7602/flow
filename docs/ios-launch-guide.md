@@ -1,120 +1,94 @@
 # Flow — iOS App Store Launch Guide
 
-This covers everything from here to TestFlight and the App Store, written for a **Windows-only setup with no Mac**. All builds happen on Codemagic's cloud Macs, triggered from your browser.
+Written for a Windows-only setup with no Mac — all builds run on Codemagic's cloud Macs, triggered from your browser.
 
 ---
 
-## Where things stand
+## Where things actually stand
 
-- ✅ Capacitor project wrapped (`ios/` folder, `capacitor.config.json`)
-- ✅ Bundle ID set: `com.flowdaily.app`
-- ✅ Portrait orientation hard-locked (native, unlike the web version)
-- ✅ Push notification plugin installed and wired into the frontend (native-aware — detects Capacitor vs browser automatically)
-- ⚠️ **Native push delivery (backend) is NOT built yet** — see "What's still missing" below
-- ✅ `codemagic.yaml` — the cloud build recipe, ready to run once your Apple account exists
-
----
-
-## Step 1 — Apple Developer account (do this FIRST — slowest step)
-
-1. Go to **developer.apple.com/programs/enroll**
-2. Sign in with (or create) an Apple ID
-3. Enroll as an **Individual** (not Organization — simpler, no D-U-N-S number needed)
-4. Pay the **$99/year** fee
-5. Apple verifies your identity — this can take anywhere from a few hours to 2 days
-
-**Start this now regardless of anything else** — every other step waits on this.
+- ✅ Apple Developer account — enrolled, verified, tax forms done
+- ✅ App Store Connect app created (`Flow-Daily`, numeric Apple ID `6809710060`, bundle ID `com.flowdaily.app`)
+- ✅ **Codemagic build pipeline works end-to-end** — archive, export, upload to App Store Connect, and TestFlight group assignment all succeed
+- ✅ Push Notifications entitlement added to the Xcode project (`App.entitlements`, `aps-environment=production`) and enabled on the App ID in Apple Developer Portal
+- ✅ Provisioning profile ("Flow App Store Profile") regenerated to include both In-App Purchase and Push Notifications capabilities
+- ✅ First-ever real-device testing done: found and fixed an iOS WKWebView long-press bug (moon icon → Settings)
+- ✅ Both subscription products created (`flow_premium_monthly` €4.99/14-day trial, `flow_premium_yearly` €49.99/no trial)
+- ✅ RevenueCat connected to App Store Connect (API key + App Store Server Notifications configured)
+- ✅ **Real sandbox purchase confirmed successful** on TestFlight (Monthly, full purchase→entitlement flow worked)
+- ⬜ Push notification toggle not yet re-tested since the entitlement fix (should work now, unconfirmed)
+- ⬜ Both subscriptions not yet submitted for App Store review — deliberately held back pending full validation
+- ⬜ App Store listing metadata (age rating, screenshots, full description) — not started, not needed until real public submission
 
 ---
 
-## Step 2 — App Store Connect setup (once Apple approves you)
+## The five real bugs that were actually blocking this for weeks, and their fixes
 
-1. Go to **appstoreconnect.apple.com**
-2. **My Apps → +  → New App**
-3. Platform: iOS · Name: **Flow** · Bundle ID: create new → `com.flowdaily.app` (must match exactly) · SKU: anything, e.g. `flow001`
-4. Fill in the required metadata later (screenshots, description) — not needed yet for TestFlight internal testing, only for public submission
+If a future build breaks in a similar way, these are the patterns to check first:
 
----
+**1. Provisioning profile never found ("Did not find matching provisioning profiles")**
+Root cause: `codemagic.yaml` used `environment: groups: [ios_signing]` — an environment **variable group** with that name, created earlier by mistake to fix an unrelated error. Codemagic actually has a *reserved* YAML key also named `ios_signing:` (with `distribution_type` and `bundle_identifier` sub-fields) that's the real mechanism `xcode-project use-profiles` needs to search your account's Code Signing Identities. The variable group did nothing for signing at all.
+**Fix:** use the real key:
+```yaml
+environment:
+  ios_signing:
+    distribution_type: app_store
+    bundle_identifier: com.flowdaily.app
+```
 
-## Step 3 — Codemagic account (free tier, no Mac needed)
+**2. "RevenueCat_RevenueCat does not support provisioning profiles"**
+Root cause: a manual `xcodebuild archive` command applied `CODE_SIGN_STYLE=Manual` globally to *every* target being built, including RevenueCat's own Swift Package framework (a library, which should never carry a provisioning profile).
+**Fix:** use `xcode-project build-ipa` (the Codemagic wrapper) instead of a hand-rolled `xcodebuild` command — it correctly scopes manual signing to only the actual App target.
 
-1. Sign up at **codemagic.io** with your GitHub account
-2. **Add application** → select the `Abdul7602/flow` repo
-3. Codemagic will detect `codemagic.yaml` in the repo automatically
+**3. Build number collision ("bundle version must be higher than previously uploaded")**
+Root cause: the auto-increment step checked `get-latest-app-store-build-number`, which only considers builds released to the **public** App Store (always 0, since Flow has never been public) — so it kept recomputing "1" and colliding with the already-uploaded TestFlight build.
+**Fix:** use `get-latest-build-number` (considers TestFlight + App Store together) with the app's real **numeric** Apple ID, not the bundle identifier string:
+```yaml
+agvtool new-version -all $(($(app-store-connect get-latest-build-number "$APP_STORE_APPLE_ID") + 1))
+```
 
-### Connect Codemagic to Apple
+**4. "Cannot add internal group to a build"**
+Root cause: the TestFlight internal group had "Enable automatic distribution" turned ON — which, per multiple confirmed reports, causes Apple's API to reject Codemagic's *explicit* "add build to group" call. This setting can't be changed after a group is created.
+**Fix:** create a new group with automatic distribution **OFF** — this repo uses one named `CI Testers` (not "Internal Testers," which remains broken for CI use).
 
-**Note:** newer Codemagic UI has consolidated this into a single screen rather than separate "Apple Developer Portal" and "App Store Connect" integrations.
-
-1. In Codemagic → **Teams → Settings → Integrations** (or a similar path — look for "Apple Developer Portal integration")
-2. Create an **API Key** in App Store Connect first: **Users and Access → Keys → App Store Connect API** → Generate → **Access role: App Manager** → download the `.p8` file, note the **Key ID** and **Issuer ID**
-3. In Codemagic's integration screen, add the key (name it anything memorable, e.g. `codemagic-key`)
-4. **Whatever name you give it, that exact name must appear in `codemagic.yaml`** under `integrations: app_store_connect:` — the current repo value is `codemagic-key`. If you named yours differently, either rename it to match, or edit `codemagic.yaml` to match your name and push that change.
-
-### Set up code signing
-1. Codemagic → your app → **Code signing → iOS**
-2. Easiest path: let Codemagic **automatically manage signing** — it can generate certificates and provisioning profiles for you once the integration above is linked
-3. **iOS certificates tab** → Generate a new certificate → type: **Apple Distribution** (not Apple Development — Distribution is required for TestFlight/App Store)
-4. **iOS provisioning profiles tab** → Fetch profiles (pulls existing ones) — if none exist yet, create one manually first in Apple Developer Portal (Profiles → + → App Store Connect type → select your App ID and the Distribution certificate → download → upload here)
-
-### Environment variable group (separate from code signing)
-`codemagic.yaml` also references an environment variable group called `ios_signing` (under `environment: groups:`). This is a different thing from the certificates/profiles above — it's Codemagic's mechanism for grouping secrets/variables for a build.
-1. Codemagic → your app → **Environment variables**
-2. Create a new group named exactly `ios_signing`
-3. It can be empty for now if code signing is fully automatic — this group existing (even without variables in it) is enough to stop the build from erroring on a missing group reference. Add variables here later if the build ever asks for a specific one by name.
+**5. Export Compliance blocking group assignment**
+A build can upload and process successfully, then still fail group assignment until the app answers Apple's encryption question.
+**Fix:** `ITSAppUsesNonExemptEncryption = false` in `Info.plist` (Flow only uses standard HTTPS/TLS, which is exempt) — this auto-skips the question for every future build.
 
 ---
 
-## Step 4 — Trigger your first build
+## Push notifications — what was missing and how it was fixed
 
-1. Codemagic → your app → **Start new build** → workflow: `ios-testflight`
-2. Watch the build log in your browser (this is your "Mac" now — happens entirely in the cloud)
-3. On success, it automatically uploads to **TestFlight**
+The `ios/` project had **no `.entitlements` file at all** — meaning Push Notifications was never actually enabled as an Xcode capability, even though the JS/plugin code was correct. This can cause push permission/registration to silently fail on a real device.
 
----
+**Fixed via:**
+1. Created `ios/App/App/App.entitlements` with `aps-environment = production`
+2. Wired `CODE_SIGN_ENTITLEMENTS = App/App.entitlements` into both Debug and Release build configs in `project.pbxproj`
+3. Enabled "Push Notifications" capability on the App ID in Apple Developer Portal
+4. Regenerated "Flow App Store Profile" to pick up both capabilities
 
-## Step 5 — Install on your iPhone via TestFlight
+**Backend side (separate from the above, already done earlier):** `APNS_AUTH_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID` secrets are set in Supabase, and `send-review-push` already contains the full APNs JWT-signing/delivery logic.
 
-1. Install the **TestFlight** app from the App Store on your iPhone
-2. In App Store Connect → your app → **TestFlight** tab → add yourself as an internal tester (your Apple ID email)
-3. Accept the invite that arrives → install Flow through TestFlight
-4. This is a **real native app**, not the PWA — test everything fresh: login, extraction, calendar, and especially notifications
-
----
-
-## What's still missing (do before public submission)
-
-**Native push notification delivery — code is READY, just needs 3 secrets.** The app registers for native push and stores a device token in `push_subscriptions` (tagged `{native: true, platform: 'ios', token: ...}`). The `send-review-push` Edge Function already contains the full APNs-sending logic (JWT signing, HTTP/2 delivery, dead-token cleanup) — it's just inactive until three secrets exist, because Apple only issues the required key after your Developer account is approved.
-
-**Once your Apple Developer account is active, do this (10 minutes):**
-
-1. Go to **developer.apple.com/account → Certificates, Identifiers & Profiles → Keys**
-2. Click **+** → name it e.g. `Flow APNs Key` → check **Apple Push Notifications service (APNs)** → Continue → Register
-3. **Download the `.p8` file immediately** — Apple only lets you download it once, ever. If you lose it you must generate a new key.
-4. Note the **Key ID** shown on that page (10-character code)
-5. Note your **Team ID** — top-right of the developer portal, or **Membership Details** page (also 10 characters)
-6. Open the downloaded `.p8` file in a text editor — copy its full contents (including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines)
-7. In Supabase → Edge Functions → **Secrets**, add:
-   - `APNS_AUTH_KEY` = the full contents of the .p8 file
-   - `APNS_KEY_ID` = the Key ID from step 4
-   - `APNS_TEAM_ID` = the Team ID from step 5
-8. Redeploy `send-review-push` (Edge Functions → send-review-push → Deploy, no code change needed — just picks up the new secrets)
-
-That's it — native push notifications go live the moment those three secrets are saved. No other code changes needed; this was all built in advance.
-
-**Until those secrets exist:** native subscribers are silently skipped (no error, no crash) — Web Push subscribers (browser/PWA) continue working exactly as before, completely unaffected.
+**Status: fix is in place, not yet re-confirmed working on a real device since the entitlement fix.** This is the next thing to test.
 
 ---
 
-## Realistic timeline from here
+## Subscriptions — current state
 
-| Step | Time |
-|---|---|
-| Apple Developer approval | hours – 2 days |
-| Codemagic + signing setup | 1–2 hours (one-time) |
-| First build | ~15–20 min build time |
-| TestFlight testing | as long as you want |
-| Native push wiring | ~1 hour once APNs key exists |
-| App Store review after submission | 1–3 days typically |
+Both products exist in App Store Connect, RevenueCat is connected (App Store Connect API key + Server Notifications configured), and both are attached to the same `flow_daily_pro` entitlement and the `default` offering (same offering Android uses — one offering serves both platforms' correct product automatically). A real sandbox purchase on Monthly has been confirmed successful end-to-end.
 
-Nothing here is blocked by your hardware — every remaining step happens in a browser.
+**Not yet done:** exhaustive renewal/cancellation testing (Apple's sandbox is known to be flaky/slow for this across the industry — not unique to Flow, and lower priority since the core purchase mechanic is already proven). Neither subscription has been submitted for App Store review yet.
+
+**Full setup reference:** see `docs/subscriptions-setup.md` for the complete step-by-step (shared doc covering both platforms).
+
+---
+
+## What's left before an actual public App Store submission
+
+1. Re-test push notification toggle on a fresh TestFlight build (entitlement fix should resolve it, unconfirmed)
+2. Decide whether to pursue deeper subscription lifecycle testing or accept current validation as sufficient (matches the bar Android was held to)
+3. Fill in App Store listing metadata: age rating, screenshots, full app description, keywords
+4. Create an actual **App Store version** (separate from TestFlight) in App Store Connect and attach both subscriptions to it — this is required, since subscriptions cannot be submitted for review independently of an app version
+5. Submit the app version + both subscriptions together for Apple's review
+6. Apple review turnaround: typically 1-3 days
+
+None of this is blocked by hardware — everything still happens in a browser via Codemagic and App Store Connect.
