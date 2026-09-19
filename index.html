@@ -1892,6 +1892,7 @@ async function togglePush(){
   pushBusy=true;
   const sw=document.getElementById('notif-switch');
   if(sw)sw.classList.add('busy');
+  let awaitingNativeToken=false; // set true only when we've just asked iOS/Android to register — the async 'registration' listener (or 'registrationError') is then the sole source of truth for the UI, not an immediate re-check
   try{
     const state=await getPushState();
 
@@ -1912,7 +1913,20 @@ async function togglePush(){
         if(perm.receive==='granted'){
           await PushNotifications.register();
           showToast('DEBUG: register() called, waiting for token…'); // ⭐ TEMP DEBUG
-          // token arrives via the 'registration' listener set up at startup
+          // token arrives via the 'registration' listener set up at startup — don't
+          // race ahead of it by re-checking Supabase before the token has landed
+          awaitingNativeToken=true;
+          // safety net: if no token/error arrives within 15s, stop waiting and
+          // show the real current state rather than leaving the switch stuck
+          setTimeout(async()=>{
+            const stillOff=(await getPushState())==='off';
+            if(stillOff){
+              showToast('DEBUG: no token arrived after 15s — timed out'); // ⭐ TEMP DEBUG
+              refreshNotifBtn();
+            }
+          },15000);
+        }else{
+          if(sw)sw.classList.remove('on'); // permission actually denied — don't leave switch stuck visually "on"
         }
       }
       return;
@@ -1950,7 +1964,8 @@ async function togglePush(){
     console.error('push toggle error',e);
   }finally{
     pushBusy=false;
-    refreshNotifBtn();
+    if(sw)sw.classList.remove('busy');
+    if(!awaitingNativeToken)refreshNotifBtn();
   }
 }
 
