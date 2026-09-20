@@ -209,6 +209,9 @@ Deno.serve(async (_req) => {
       .select('user_id, review_time, timezone, last_push_date, push_count')
     if (error) throw error
 
+    debugLog.push('FUNCTION VERSION: v4-2026-09-20-unconditional-debug') // ⭐ TEMP DEBUG
+    debugLog.push('settings rows fetched: ' + (settings?.length || 0)) // ⭐ TEMP DEBUG
+
     let sent = 0
     const now = new Date()
 
@@ -221,13 +224,18 @@ Deno.serve(async (_req) => {
       const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now)
 
       const countToday = s.last_push_date === localDate ? (s.push_count || 0) : 0
-      if (countToday >= MAX_PUSHES_PER_DAY) continue
 
       const review = (s.review_time || '22:00').slice(0, 5)
       const [rh, rm] = review.split(':').map(Number)
       const [lh, lm] = localNow.split(':').map(Number)
       const diff = (lh * 60 + lm) - (rh * 60 + rm)
-      if (diff < 0 || diff > 9) continue // widened from 4→9 min: cron runs every 5 min, so a tight window risks missing real users if a run is ever slightly delayed
+
+      // ⭐ TEMP DEBUG — always log per-user timing/count detail, even when skipping,
+      // so a "nothing matched" result still tells us exactly why
+      debugLog.push(`user ${s.user_id.slice(0,8)}…: review_time=${review} localNow=${localNow} tz=${tz} diff=${diff}min countToday=${countToday}/${MAX_PUSHES_PER_DAY}`)
+
+      if (countToday >= MAX_PUSHES_PER_DAY) { debugLog.push('  → skipped: daily limit reached'); continue } // ⭐ TEMP DEBUG
+      if (diff < 0 || diff > 9) { debugLog.push('  → skipped: outside time window'); continue } // ⭐ TEMP DEBUG
 
       const { count } = await supabase
         .from('tasks')
