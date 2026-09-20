@@ -227,7 +227,7 @@ Deno.serve(async (_req) => {
       const [rh, rm] = review.split(':').map(Number)
       const [lh, lm] = localNow.split(':').map(Number)
       const diff = (lh * 60 + lm) - (rh * 60 + rm)
-      if (diff < 0 || diff > 4) continue
+      if (diff < 0 || diff > 9) continue // widened from 4→9 min: cron runs every 5 min, so a tight window risks missing real users if a run is ever slightly delayed
 
       const { count } = await supabase
         .from('tasks')
