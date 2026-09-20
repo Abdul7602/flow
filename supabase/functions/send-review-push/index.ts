@@ -202,7 +202,7 @@ Deno.serve(async (_req) => {
       Deno.env.get('VAPID_PRIVATE_KEY')!
     )
 
-    const MAX_PUSHES_PER_DAY = 1 // production: one review push per day (raise for testing)
+    const MAX_PUSHES_PER_DAY = 50 // ⭐ TEMP: raised from 1 for testing (manual SQL resets weren't reliably taking effect) — MUST be lowered back to 1 before real production use
 
     const { data: settings, error } = await supabase
       .from('settings')
