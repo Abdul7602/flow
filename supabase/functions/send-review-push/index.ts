@@ -33,8 +33,29 @@ const APNS_URL = 'https://api.push.apple.com' // TestFlight + App Store both use
 let cachedApnsJwt: { token: string; issuedAt: number } | null = null
 const debugLog: string[] = [] // ⭐ TEMP DEBUG — collected and returned directly in the response body
 
+// Cleans up the most common copy-paste corruption patterns for a PEM key:
+// literal "\n" text instead of real newlines, Windows CRLF endings, or the
+// whole key collapsed onto a single line (a known old-Notepad quirk with
+// Unix-style line endings in short text files).
+function normalizePkcs8Key(raw: string): string {
+  let key = raw.trim()
+  key = key.replace(/\\n/g, '\n')      // literal backslash-n → real newline
+  key = key.replace(/\r\n/g, '\n')     // CRLF → LF
+  if (!key.includes('\n') && key.includes('-----BEGIN PRIVATE KEY-----')) {
+    const body = key
+      .replace('-----BEGIN PRIVATE KEY-----', '')
+      .replace('-----END PRIVATE KEY-----', '')
+      .trim()
+    const lines = body.match(/.{1,64}/g) || []
+    key = '-----BEGIN PRIVATE KEY-----\n' + lines.join('\n') + '\n-----END PRIVATE KEY-----'
+  }
+  return key
+}
+
 async function getApnsJwt(): Promise<string | null> {
-  const key = Deno.env.get('APNS_AUTH_KEY')
+  const rawKey = Deno.env.get('APNS_AUTH_KEY')
+  const key = rawKey ? normalizePkcs8Key(rawKey) : rawKey
+  debugLog.push('raw key length: ' + (rawKey?.length||0) + ', starts: ' + JSON.stringify(rawKey?.slice(0,30)) + ', ends: ' + JSON.stringify(rawKey?.slice(-30))) // ⭐ TEMP DEBUG
   const keyId = Deno.env.get('APNS_KEY_ID')
   const teamId = Deno.env.get('APNS_TEAM_ID')
   debugLog.push('secrets present: ' + JSON.stringify({ hasKey: !!key, hasKeyId: !!keyId, hasTeamId: !!teamId, keyId, teamId })) // ⭐ TEMP DEBUG
