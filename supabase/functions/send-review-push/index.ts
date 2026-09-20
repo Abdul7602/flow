@@ -31,20 +31,21 @@ const APNS_BUNDLE_ID = 'com.flowdaily.app'
 const APNS_URL = 'https://api.push.apple.com' // TestFlight + App Store both use production APNs
 
 let cachedApnsJwt: { token: string; issuedAt: number } | null = null
+const debugLog: string[] = [] // ⭐ TEMP DEBUG — collected and returned directly in the response body
 
 async function getApnsJwt(): Promise<string | null> {
   const key = Deno.env.get('APNS_AUTH_KEY')
   const keyId = Deno.env.get('APNS_KEY_ID')
   const teamId = Deno.env.get('APNS_TEAM_ID')
-  console.log('[APNs] secrets present:', { hasKey: !!key, hasKeyId: !!keyId, hasTeamId: !!teamId, keyId, teamId }) // ⭐ TEMP DEBUG
+  debugLog.push('secrets present: ' + JSON.stringify({ hasKey: !!key, hasKeyId: !!keyId, hasTeamId: !!teamId, keyId, teamId })) // ⭐ TEMP DEBUG
   if (!key || !keyId || !teamId) {
-    console.log('[APNs] one or more secrets missing — skipping') // ⭐ TEMP DEBUG
+    debugLog.push('one or more secrets missing — skipping') // ⭐ TEMP DEBUG
     return null // not configured yet — feature inactive
   }
 
   // APNs JWTs are valid up to 1hr — reuse for 50 min to avoid re-signing every call
   if (cachedApnsJwt && Date.now() - cachedApnsJwt.issuedAt < 50 * 60 * 1000) {
-    console.log('[APNs] using cached JWT') // ⭐ TEMP DEBUG
+    debugLog.push('using cached JWT') // ⭐ TEMP DEBUG
     return cachedApnsJwt.token
   }
 
@@ -57,10 +58,10 @@ async function getApnsJwt(): Promise<string | null> {
       .sign(privateKey)
 
     cachedApnsJwt = { token, issuedAt: Date.now() }
-    console.log('[APNs] JWT signed successfully') // ⭐ TEMP DEBUG
+    debugLog.push('JWT signed successfully') // ⭐ TEMP DEBUG
     return token
   } catch (e) {
-    console.log('[APNs] JWT signing FAILED:', String(e)) // ⭐ TEMP DEBUG
+    debugLog.push('JWT signing FAILED: ' + String(e)) // ⭐ TEMP DEBUG
     return null
   }
 }
@@ -68,11 +69,11 @@ async function getApnsJwt(): Promise<string | null> {
 async function sendApns(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
   const jwt = await getApnsJwt()
   if (!jwt) {
-    console.log('[APNs] no JWT available — cannot send') // ⭐ TEMP DEBUG
+    debugLog.push('no JWT available — cannot send') // ⭐ TEMP DEBUG
     return { ok: false } // APNs not configured yet — skip quietly
   }
 
-  console.log('[APNs] sending to device token:', deviceToken.slice(0, 12)+'…') // ⭐ TEMP DEBUG
+  debugLog.push('sending to device token: ' + deviceToken.slice(0, 12)+'…') // ⭐ TEMP DEBUG
 
   const res = await fetch(`${APNS_URL}/3/device/${deviceToken}`, {
     method: 'POST',
@@ -88,7 +89,7 @@ async function sendApns(deviceToken: string, title: string, body: string): Promi
   })
 
   const resBody = await res.text() // ⭐ TEMP DEBUG — read body for diagnostics
-  console.log('[APNs] response status:', res.status, 'body:', resBody) // ⭐ TEMP DEBUG
+  debugLog.push('response status: ' + res.status + ' body: ' + resBody) // ⭐ TEMP DEBUG
 
   if (res.status === 200) return { ok: true }
   // 410 Gone / 400 BadDeviceToken → token is dead, clean it up
@@ -225,8 +226,11 @@ Deno.serve(async (_req) => {
         .select('id, subscription')
         .eq('user_id', s.user_id)
 
+      debugLog.push(`user ${s.user_id.slice(0,8)}… matched review time — checking ${(subs||[]).length} subscription row(s)`) // ⭐ TEMP DEBUG
+
       for (const row of subs || []) {
         const sub = row.subscription as any
+        debugLog.push('row subscription: ' + JSON.stringify(sub)) // ⭐ TEMP DEBUG
 
         if (sub?.native && sub?.token && sub?.platform === 'android') {
           // ── Native Android app (FCM) ──
@@ -260,10 +264,10 @@ Deno.serve(async (_req) => {
         .eq('user_id', s.user_id)
     }
 
-    return new Response(JSON.stringify({ ok: true, sent }), {
+    return new Response(JSON.stringify({ ok: true, sent, debug: debugLog }), { // ⭐ TEMP DEBUG — added debugLog to response
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
+    return new Response(JSON.stringify({ error: String(e), debug: debugLog }), { status: 500 }) // ⭐ TEMP DEBUG
   }
 })
