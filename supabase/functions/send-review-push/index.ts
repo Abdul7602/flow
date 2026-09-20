@@ -21,6 +21,13 @@
 // NOTE: APNs and FCM sending are INACTIVE until their secrets above are
 // set. Until then, native subscribers on that platform are silently
 // skipped — Web Push subscribers (browser/PWA) continue to work.
+//
+// CONFIRMED WORKING end-to-end on iOS (real device, real APNs delivery) —
+// 2026-09-20. If APNs ever needs debugging again: temporarily re-add a
+// `debug: string[]` array, push status into it at each step, and return
+// it in the JSON response — this was the pattern that finally surfaced
+// the real error last time (a malformed APNS_AUTH_KEY missing its PEM
+// header/footer, normalized below).
 // ═══════════════════════════════════════════════════
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -31,24 +38,23 @@ const APNS_BUNDLE_ID = 'com.flowdaily.app'
 const APNS_URL = 'https://api.push.apple.com' // TestFlight + App Store both use production APNs
 
 let cachedApnsJwt: { token: string; issuedAt: number } | null = null
-const debugLog: string[] = [] // ⭐ TEMP DEBUG — collected and returned directly in the response body
 
 // Cleans up the most common copy-paste corruption patterns for a PEM key:
-// literal "\n" text instead of real newlines, Windows CRLF endings, or the
-// whole key collapsed onto a single line (a known old-Notepad quirk with
-// Unix-style line endings in short text files).
+// literal "\n" text instead of real newlines, Windows CRLF endings, the
+// whole key collapsed onto one line, or — the actual real-world case that
+// caused this to fail for a while — the -----BEGIN/END----- header and
+// footer lines missing entirely because only the base64 body got copied.
 function normalizePkcs8Key(raw: string): string {
   let key = raw.trim()
-  key = key.replace(/\\n/g, '\n')      // literal backslash-n → real newline
-  key = key.replace(/\r\n/g, '\n')     // CRLF → LF
+  key = key.replace(/\\n/g, '\n')
+  key = key.replace(/\r\n/g, '\n')
+
   if (!key.includes('-----BEGIN')) {
-    // BEGIN/END markers missing entirely (confirmed real case — copy-paste from
-    // Notepad left them out) — treat the whole thing as raw base64 body content
-    // and wrap it with proper PEM headers ourselves
     const body = key.replace(/\s+/g, '')
     const lines = body.match(/.{1,64}/g) || []
     return '-----BEGIN PRIVATE KEY-----\n' + lines.join('\n') + '\n-----END PRIVATE KEY-----'
   }
+
   if (!key.includes('\n') && key.includes('-----BEGIN PRIVATE KEY-----')) {
     const body = key
       .replace('-----BEGIN PRIVATE KEY-----', '')
@@ -63,18 +69,12 @@ function normalizePkcs8Key(raw: string): string {
 async function getApnsJwt(): Promise<string | null> {
   const rawKey = Deno.env.get('APNS_AUTH_KEY')
   const key = rawKey ? normalizePkcs8Key(rawKey) : rawKey
-  debugLog.push('raw key length: ' + (rawKey?.length||0) + ', starts: ' + JSON.stringify(rawKey?.slice(0,30)) + ', ends: ' + JSON.stringify(rawKey?.slice(-30))) // ⭐ TEMP DEBUG
   const keyId = Deno.env.get('APNS_KEY_ID')
   const teamId = Deno.env.get('APNS_TEAM_ID')
-  debugLog.push('secrets present: ' + JSON.stringify({ hasKey: !!key, hasKeyId: !!keyId, hasTeamId: !!teamId, keyId, teamId })) // ⭐ TEMP DEBUG
-  if (!key || !keyId || !teamId) {
-    debugLog.push('one or more secrets missing — skipping') // ⭐ TEMP DEBUG
-    return null // not configured yet — feature inactive
-  }
+  if (!key || !keyId || !teamId) return null // not configured yet — feature inactive
 
   // APNs JWTs are valid up to 1hr — reuse for 50 min to avoid re-signing every call
   if (cachedApnsJwt && Date.now() - cachedApnsJwt.issuedAt < 50 * 60 * 1000) {
-    debugLog.push('using cached JWT') // ⭐ TEMP DEBUG
     return cachedApnsJwt.token
   }
 
@@ -87,22 +87,15 @@ async function getApnsJwt(): Promise<string | null> {
       .sign(privateKey)
 
     cachedApnsJwt = { token, issuedAt: Date.now() }
-    debugLog.push('JWT signed successfully') // ⭐ TEMP DEBUG
     return token
-  } catch (e) {
-    debugLog.push('JWT signing FAILED: ' + String(e)) // ⭐ TEMP DEBUG
+  } catch {
     return null
   }
 }
 
 async function sendApns(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
   const jwt = await getApnsJwt()
-  if (!jwt) {
-    debugLog.push('no JWT available — cannot send') // ⭐ TEMP DEBUG
-    return { ok: false } // APNs not configured yet — skip quietly
-  }
-
-  debugLog.push('sending to device token: ' + deviceToken.slice(0, 12)+'…') // ⭐ TEMP DEBUG
+  if (!jwt) return { ok: false } // APNs not configured yet — skip quietly
 
   const res = await fetch(`${APNS_URL}/3/device/${deviceToken}`, {
     method: 'POST',
@@ -116,9 +109,6 @@ async function sendApns(deviceToken: string, title: string, body: string): Promi
       aps: { alert: { title, body }, sound: 'default' },
     }),
   })
-
-  const resBody = await res.text() // ⭐ TEMP DEBUG — read body for diagnostics
-  debugLog.push('response status: ' + res.status + ' body: ' + resBody) // ⭐ TEMP DEBUG
 
   if (res.status === 200) return { ok: true }
   // 410 Gone / 400 BadDeviceToken → token is dead, clean it up
@@ -210,15 +200,12 @@ Deno.serve(async (_req) => {
       Deno.env.get('VAPID_PRIVATE_KEY')!
     )
 
-    const MAX_PUSHES_PER_DAY = 50 // ⭐ TEMP: raised from 1 for testing (manual SQL resets weren't reliably taking effect) — MUST be lowered back to 1 before real production use
+    const MAX_PUSHES_PER_DAY = 1 // production: one review push per day (raise for testing)
 
     const { data: settings, error } = await supabase
       .from('settings')
       .select('user_id, review_time, timezone, last_push_date, push_count')
     if (error) throw error
-
-    debugLog.push('FUNCTION VERSION: v4-2026-09-20-unconditional-debug') // ⭐ TEMP DEBUG
-    debugLog.push('settings rows fetched: ' + (settings?.length || 0)) // ⭐ TEMP DEBUG
 
     let sent = 0
     const now = new Date()
@@ -232,18 +219,16 @@ Deno.serve(async (_req) => {
       const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now)
 
       const countToday = s.last_push_date === localDate ? (s.push_count || 0) : 0
+      if (countToday >= MAX_PUSHES_PER_DAY) continue
 
       const review = (s.review_time || '22:00').slice(0, 5)
       const [rh, rm] = review.split(':').map(Number)
       const [lh, lm] = localNow.split(':').map(Number)
       const diff = (lh * 60 + lm) - (rh * 60 + rm)
-
-      // ⭐ TEMP DEBUG — always log per-user timing/count detail, even when skipping,
-      // so a "nothing matched" result still tells us exactly why
-      debugLog.push(`user ${s.user_id.slice(0,8)}…: review_time=${review} localNow=${localNow} tz=${tz} diff=${diff}min countToday=${countToday}/${MAX_PUSHES_PER_DAY}`)
-
-      if (countToday >= MAX_PUSHES_PER_DAY) { debugLog.push('  → skipped: daily limit reached'); continue } // ⭐ TEMP DEBUG
-      if (diff < 0 || diff > 9) { debugLog.push('  → skipped: outside time window'); continue } // ⭐ TEMP DEBUG
+      // 9-min window (widened from an original 4 min): the cron runs every 5
+      // min, so a tight window risks missing real users if a run is ever
+      // slightly delayed — routine for scheduled jobs generally.
+      if (diff < 0 || diff > 9) continue
 
       const { count } = await supabase
         .from('tasks')
@@ -263,11 +248,8 @@ Deno.serve(async (_req) => {
         .select('id, subscription')
         .eq('user_id', s.user_id)
 
-      debugLog.push(`user ${s.user_id.slice(0,8)}… matched review time — checking ${(subs||[]).length} subscription row(s)`) // ⭐ TEMP DEBUG
-
       for (const row of subs || []) {
         const sub = row.subscription as any
-        debugLog.push('row subscription: ' + JSON.stringify(sub)) // ⭐ TEMP DEBUG
 
         if (sub?.native && sub?.token && sub?.platform === 'android') {
           // ── Native Android app (FCM) ──
@@ -301,10 +283,10 @@ Deno.serve(async (_req) => {
         .eq('user_id', s.user_id)
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, debug: debugLog }), { // ⭐ TEMP DEBUG — added debugLog to response
+    return new Response(JSON.stringify({ ok: true, sent }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e), debug: debugLog }), { status: 500 }) // ⭐ TEMP DEBUG
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
   }
 })
