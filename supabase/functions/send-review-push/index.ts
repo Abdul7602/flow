@@ -41,6 +41,14 @@ function normalizePkcs8Key(raw: string): string {
   let key = raw.trim()
   key = key.replace(/\\n/g, '\n')      // literal backslash-n → real newline
   key = key.replace(/\r\n/g, '\n')     // CRLF → LF
+  if (!key.includes('-----BEGIN')) {
+    // BEGIN/END markers missing entirely (confirmed real case — copy-paste from
+    // Notepad left them out) — treat the whole thing as raw base64 body content
+    // and wrap it with proper PEM headers ourselves
+    const body = key.replace(/\s+/g, '')
+    const lines = body.match(/.{1,64}/g) || []
+    return '-----BEGIN PRIVATE KEY-----\n' + lines.join('\n') + '\n-----END PRIVATE KEY-----'
+  }
   if (!key.includes('\n') && key.includes('-----BEGIN PRIVATE KEY-----')) {
     const body = key
       .replace('-----BEGIN PRIVATE KEY-----', '')
