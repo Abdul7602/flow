@@ -36,27 +36,43 @@ async function getApnsJwt(): Promise<string | null> {
   const key = Deno.env.get('APNS_AUTH_KEY')
   const keyId = Deno.env.get('APNS_KEY_ID')
   const teamId = Deno.env.get('APNS_TEAM_ID')
-  if (!key || !keyId || !teamId) return null // not configured yet — feature inactive
+  console.log('[APNs] secrets present:', { hasKey: !!key, hasKeyId: !!keyId, hasTeamId: !!teamId, keyId, teamId }) // ⭐ TEMP DEBUG
+  if (!key || !keyId || !teamId) {
+    console.log('[APNs] one or more secrets missing — skipping') // ⭐ TEMP DEBUG
+    return null // not configured yet — feature inactive
+  }
 
   // APNs JWTs are valid up to 1hr — reuse for 50 min to avoid re-signing every call
   if (cachedApnsJwt && Date.now() - cachedApnsJwt.issuedAt < 50 * 60 * 1000) {
+    console.log('[APNs] using cached JWT') // ⭐ TEMP DEBUG
     return cachedApnsJwt.token
   }
 
-  const privateKey = await importPKCS8(key, 'ES256')
-  const token = await new SignJWT({})
-    .setProtectedHeader({ alg: 'ES256', kid: keyId })
-    .setIssuedAt()
-    .setIssuer(teamId)
-    .sign(privateKey)
+  try {
+    const privateKey = await importPKCS8(key, 'ES256')
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: keyId })
+      .setIssuedAt()
+      .setIssuer(teamId)
+      .sign(privateKey)
 
-  cachedApnsJwt = { token, issuedAt: Date.now() }
-  return token
+    cachedApnsJwt = { token, issuedAt: Date.now() }
+    console.log('[APNs] JWT signed successfully') // ⭐ TEMP DEBUG
+    return token
+  } catch (e) {
+    console.log('[APNs] JWT signing FAILED:', String(e)) // ⭐ TEMP DEBUG
+    return null
+  }
 }
 
 async function sendApns(deviceToken: string, title: string, body: string): Promise<{ ok: boolean; shouldDelete?: boolean }> {
   const jwt = await getApnsJwt()
-  if (!jwt) return { ok: false } // APNs not configured yet — skip quietly
+  if (!jwt) {
+    console.log('[APNs] no JWT available — cannot send') // ⭐ TEMP DEBUG
+    return { ok: false } // APNs not configured yet — skip quietly
+  }
+
+  console.log('[APNs] sending to device token:', deviceToken.slice(0, 12)+'…') // ⭐ TEMP DEBUG
 
   const res = await fetch(`${APNS_URL}/3/device/${deviceToken}`, {
     method: 'POST',
@@ -70,6 +86,9 @@ async function sendApns(deviceToken: string, title: string, body: string): Promi
       aps: { alert: { title, body }, sound: 'default' },
     }),
   })
+
+  const resBody = await res.text() // ⭐ TEMP DEBUG — read body for diagnostics
+  console.log('[APNs] response status:', res.status, 'body:', resBody) // ⭐ TEMP DEBUG
 
   if (res.status === 200) return { ok: true }
   // 410 Gone / 400 BadDeviceToken → token is dead, clean it up
