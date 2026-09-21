@@ -96,7 +96,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .note-card:active{background:#e5e5ea}
 .note-card.pinned{border-left:3px solid var(--today)}
 .pin-badge{font-size:10px;color:var(--today);font-weight:600;letter-spacing:0.03em}
-.note-card.priority-border{border-left:3px solid var(--priority)}
 /* swipe to delete */
 .swipe-wrap{position:relative;overflow:hidden;border-radius:0}
 .swipe-wrap:first-of-type{border-radius:12px 12px 0 0}
@@ -111,8 +110,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .note-meta{display:flex;align-items:center;gap:8px;margin-top:5px}
 .note-date{font-size:12px;color:var(--text3)}
 .task-badge{font-size:11px;padding:1px 7px;border-radius:10px;font-weight:500}
-.badge-urgent{background:var(--urgent-light);color:var(--urgent)}
-.badge-priority{background:var(--priority-light);color:var(--priority)}
 .badge-normal{background:var(--surface3);color:var(--text2)}
 .section-label{font-size:13px;font-weight:400;color:var(--text2-60);margin:20px 4px 6px;padding:0}
 
@@ -127,11 +124,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .note-editor.open{display:flex}
 .editor-header{padding:max(env(safe-area-inset-top,0px) + 12px, 34px) 16px 10px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:0.5px solid var(--border);flex-shrink:0}
 .back-btn{font-size:16px;color:var(--text);cursor:pointer;font-weight:400;border:none;background:none;font-family:var(--font);display:flex;align-items:center;gap:2px}
-.editor-priority-row{display:flex;gap:6px}
-.priority-chip{font-size:12px;padding:4px 11px;border-radius:14px;cursor:pointer;border:1px solid var(--border2);background:transparent;font-family:var(--font);font-weight:400;color:var(--text2);transition:all 0.15s}
-.priority-chip.sel-urgent{background:var(--urgent);color:white;border-color:var(--urgent)}
-.priority-chip.sel-priority{background:var(--priority);color:white;border-color:var(--priority)}
-.priority-chip.sel-normal{background:var(--surface3);color:var(--text);border-color:var(--border2)}
 .editor-date{font-size:12px;color:var(--text3);text-align:center;padding:6px 0 2px;background:var(--surface);flex-shrink:0}
 .editor-body{flex:1;overflow-y:auto;padding:0 20px 20px;-webkit-overflow-scrolling:touch;background:var(--surface)}
 .editor-body::-webkit-scrollbar{display:none}
@@ -151,11 +143,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .task-text{font-size:15px;line-height:1.5;flex:1;color:var(--text)}
 .task-text.done{text-decoration:line-through;color:var(--text3)}
 .task-meta{font-size:11px;color:var(--text3);margin-top:2px}
-.task-priority-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:8px}
 .task-address{font-size:12px;margin-top:3px;line-height:1.4}
-.dot-urgent{background:var(--urgent)}
-.dot-priority{background:var(--priority)}
-.dot-normal{background:var(--text3)}
 .add-item-row{display:flex;align-items:center;gap:12px;padding:10px 0;cursor:pointer;transition:opacity 0.15s}
 .add-item-row:active{opacity:0.4}
 .add-item-circle{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--text3);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text3);flex-shrink:0;line-height:1}
@@ -182,7 +170,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .cal-day.other-month{color:var(--text3)}
 .cal-day.has-events::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--text3)}
 .cal-day.today.has-events::after{background:rgba(255,255,255,0.6)}
-.cal-day.has-urgent::after{background:var(--urgent)}
 .cal-events{margin-top:20px}
 .cal-event-item{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:6px}
 .cal-event-time{font-size:12px;color:var(--text2-60);min-width:38px;font-variant-numeric:tabular-nums}
@@ -208,8 +195,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .slot-time{font-size:11px;color:var(--text3);min-width:36px;padding-top:3px;font-variant-numeric:tabular-nums}
 .slot-event{flex:1;display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start}
 .slot-event-pill{background:var(--surface3);border-radius:6px;padding:3px 9px;font-size:12px;font-weight:500;color:var(--text);display:inline-flex;align-items:center}
-.slot-event-pill.urgent-pill{background:var(--urgent-light);color:var(--urgent)}
-.slot-event-pill.priority-pill{background:var(--priority-light);color:var(--priority)}
 
 /* ── MODAL ── */
 .modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.6);z-index:200;align-items:flex-end;justify-content:center}
@@ -337,11 +322,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   <div class="note-editor" id="note-editor">
     <div class="editor-header">
       <button class="back-btn" onclick="closeEditor()">‹ Notes</button>
-      <div class="editor-priority-row">
-        <div class="priority-chip" id="chip-normal" onclick="setPriority('normal')">Normal</div>
-        <div class="priority-chip" id="chip-priority" onclick="setPriority('priority')">Priority</div>
-        <div class="priority-chip" id="chip-urgent" onclick="setPriority('urgent')">Urgent</div>
-      </div>
     </div>
     <div class="editor-date" id="editor-date"></div>
     <div class="editor-body">
@@ -703,12 +683,11 @@ function renderCal(){
     const dateStr=c.cur?`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`:'';
     // dots: exclude pinned-note tasks
     const dayTasks=data.tasks.filter(t=>t.date===dateStr&&!t.done&&t.noteId!==pinnedId);
-    const hasUrgent=dayTasks.some(t=>t.priority==='urgent');
     const hasEvents=dayTasks.length>0;
     const isToday=dateStr===todayStr;
     const isSel=dateStr===selStr&&c.cur;
     const div=document.createElement('div');
-    div.className='cal-day'+(c.cur?'':' other-month')+(isToday?' today':'')+(isSel&&!isToday?' selected':'')+(hasUrgent?' has-urgent':hasEvents?' has-events':'');
+    div.className='cal-day'+(c.cur?'':' other-month')+(isToday?' today':'')+(isSel&&!isToday?' selected':'')+(hasEvents?' has-events':'');
     div.textContent=c.day;
     if(c.cur){div.onclick=(()=>{const day=c.day;return()=>{selectedCalDay=day;renderCal();renderCalEvents()}})()}
     grid.appendChild(div);
@@ -727,8 +706,8 @@ function renderCalEvents(){
   const el=document.getElementById('cal-events');
 
   function taskRow(t){
-    const col=t.priority==='urgent'?'var(--urgent)':t.priority==='priority'?'var(--priority)':'var(--text3)';
-    const badge=t.priority==='urgent'?'<span class="cal-event-badge badge-urgent">Urgent</span>':t.priority==='priority'?'<span class="cal-event-badge badge-priority">Priority</span>':'';
+    const col='var(--text3)';
+    const badge='';
     const timeDisplay=t.time?fmt12(t.time):'–';
     const foreignLabel=(t.foreignTime&&t.foreignCity&&t.foreignTime!==t.time)
       ?`<span style="font-size:11px;color:var(--text3);margin-left:4px">(${fmt12(t.foreignTime)} ${t.foreignCity})</span>`:'';
@@ -846,10 +825,8 @@ function renderNotesList(){
 
   function noteCardHTML(n){
     const noteTasks=data.tasks.filter(t=>t.noteId===n.id&&!t.done);
-    const urgentTask=noteTasks.find(t=>t.priority==='urgent');
-    const priorityTask=noteTasks.find(t=>t.priority==='priority');
-    const borderClass=n.pinned?'pinned':urgentTask?'urgent-border':priorityTask?'priority-border':'';
-    const badge=n.pinned?`<span class="pin-badge">📌 Daily</span>`:urgentTask?`<span class="task-badge badge-urgent">Urgent</span>`:priorityTask?`<span class="task-badge badge-priority">Priority</span>`:noteTasks.length?`<span class="task-badge badge-normal">${noteTasks.length} task${noteTasks.length>1?'s':''}</span>`:'';
+    const borderClass=n.pinned?'pinned':'';
+    const badge=n.pinned?`<span class="pin-badge">📌 Daily</span>`:noteTasks.length?`<span class="task-badge badge-normal">${noteTasks.length} task${noteTasks.length>1?'s':''}</span>`:'';
     const bodyLines=(n.body||'').split('\n').map(l=>l.trim()).filter(Boolean);
     const displayTitle=n.pinned?'Daily routine':(n.title||bodyLines[0]||'New note');
     const previewStart=(!n.title&&bodyLines.length>0)?1:0;
@@ -981,7 +958,6 @@ function openNote(id){
     :d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' at '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   document.getElementById('notes-list-view').style.display='none';
   document.getElementById('note-editor').classList.add('open');
-  setPriorityUI(note.priority||'normal');
   renderTaskList(id);
   // always land cursor on title
   setTimeout(()=>document.getElementById('note-title-input').focus(),60);
@@ -1044,23 +1020,6 @@ function checkArchive(note,data){
     note.archived=true;
     showToast('All done — note archived ✨');
   }
-}
-
-function setPriority(p){
-  if(!currentNoteId)return;
-  const data=loadData();
-  const note=data.notes.find(n=>n.id===currentNoteId);
-  if(!note)return;
-  note.priority=p;
-  data.tasks.filter(t=>t.noteId===currentNoteId).forEach(t=>t.priority=p);
-  saveData(data);
-  setPriorityUI(p);
-}
-
-function setPriorityUI(p){
-  ['normal','priority','urgent'].forEach(x=>{
-    document.getElementById('chip-'+x).className='priority-chip'+(p===x?' sel-'+x:'');
-  });
 }
 
 document.getElementById('note-body-input').addEventListener('input',()=>{
@@ -1322,7 +1281,6 @@ function renderTaskList(noteId){
   const el=document.getElementById('task-list');
   if(!tasks.length){el.innerHTML='';return}
   el.innerHTML=tasks.map(t=>{
-    const dotClass=t.priority==='urgent'?'dot-urgent':t.priority==='priority'?'dot-priority':'dot-normal';
     const timeLabel=t.time?fmt12(t.time):null;
     const foreignLabel=(t.foreignTime&&t.foreignCity&&t.foreignTime!==t.time)
       ?` <span style="color:var(--text3)">(${fmt12(t.foreignTime)} ${t.foreignCity})</span>`:'';
@@ -1335,7 +1293,6 @@ function renderTaskList(noteId){
         ${addressHTML(t.address,t.addressDisplay,t.addressDetail,t.venue)}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <div class="task-priority-dot ${dotClass}"></div>
         <div onclick="deleteTask('${t.id}')" style="font-size:16px;color:var(--text3);cursor:pointer;padding:2px 4px;line-height:1" title="Remove">×</div>
       </div>
     </div>`
@@ -1453,8 +1410,7 @@ function renderDayDetail(dateStr){
     const hr=parseInt(slot);
     const slotTasks=tasks.filter(t=>{if(!t.time)return false;return parseInt(t.time.split(':')[0])===hr});
     const eventHtml=slotTasks.map(t=>{
-      const cls=t.priority==='urgent'?'urgent-pill':t.priority==='priority'?'priority-pill':'';
-      return`<div class="slot-event-pill ${cls}">${t.text}</div>`
+      return`<div class="slot-event-pill">${t.text}</div>`
     }).join('');
     return`<div class="time-slot"><div class="slot-time">${slot}</div><div class="slot-event">${eventHtml}</div></div>`
   }).join('');
@@ -1474,7 +1430,7 @@ function showReview(){
   el.innerHTML=todayTasks.map(t=>`
     <div class="review-item" id="ri-${t.id}">
       <div class="review-item-text">${t.text}</div>
-      <div class="review-item-meta">${t.date||''}${t.time?' · '+t.time:''}${t.priority!=='normal'?' · '+t.priority:''}</div>
+      <div class="review-item-meta">${t.date||''}${t.time?' · '+t.time:''}</div>
       <div class="review-actions">
         <button class="review-btn btn-done" onclick="reviewAction('${t.id}','done')">✓ Done</button>
         <button class="review-btn btn-postpone" onclick="reviewAction('${t.id}','postpone')">Tomorrow</button>
@@ -1497,7 +1453,6 @@ function reviewAction(taskId,action){
     const d=new Date((task.date||new Date().toISOString().slice(0,10))+'T12:00:00');
     d.setDate(d.getDate()+1);
     task.date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if(task.priority==='urgent')task.priority='priority';
     showToast('Moved to tomorrow');
   }else if(action==='cancel'){
     data.tasks=data.tasks.filter(t=>t.id!==taskId);
