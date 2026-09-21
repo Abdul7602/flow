@@ -1400,6 +1400,8 @@ function renderDayDetail(dateStr){
   const data=loadData();
   const pinnedId=data.notes.find(n=>n.pinned)?.id;
   const tasks=data.tasks.filter(t=>t.date===dateStr&&t.noteId!==pinnedId);
+  const timedTasks=tasks.filter(t=>t.time);
+  const untimedTasks=tasks.filter(t=>!t.time);
   const todayStr2=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const dailyTasks=pinnedId&&dateStr>=todayStr2?data.tasks.filter(t=>t.noteId===pinnedId):[];
   const el=document.getElementById('day-detail');
@@ -1408,17 +1410,21 @@ function renderDayDetail(dateStr){
   const slots=['7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
   const slotsHTML=slots.map(slot=>{
     const hr=parseInt(slot);
-    const slotTasks=tasks.filter(t=>{if(!t.time)return false;return parseInt(t.time.split(':')[0])===hr});
+    const slotTasks=timedTasks.filter(t=>parseInt(t.time.split(':')[0])===hr);
     const eventHtml=slotTasks.map(t=>{
       return`<div class="slot-event-pill">${t.text}</div>`
     }).join('');
     return`<div class="time-slot"><div class="slot-time">${slot}</div><div class="slot-event">${eventHtml}</div></div>`
   }).join('');
+  const untimedHTML=untimedTasks.length
+    ?`<div style="padding:10px 16px 6px;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-top:0.5px solid var(--border)">No time set</div>`
+      +untimedTasks.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:0.5px solid var(--border)"><div class="task-check${t.done?' checked':''}" onclick="toggleTask('${t.id}');renderDayDetail('${dateStr}')"></div><span style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''}"> ${t.text}</span></div>`).join('')
+    :'';
   const dailyHTML=dailyTasks.length
     ?`<div style="padding:10px 16px 6px;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-top:0.5px solid var(--border)">Daily routine</div>`
       +dailyTasks.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:0.5px solid var(--border)"><div class="task-check${t.done?' checked':''}" onclick="toggleTask('${t.id}');renderDayDetail('${dateStr}')"></div><span style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''}"> ${t.text}</span></div>`).join('')
     :'';
-  el.innerHTML=`<div class="day-detail-header">${label}</div>${slotsHTML}${dailyHTML}`;
+  el.innerHTML=`<div class="day-detail-header">${label}</div>${untimedHTML}${slotsHTML}${dailyHTML}`;
 }
 
 function showReview(){
