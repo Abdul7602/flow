@@ -1073,25 +1073,19 @@ function wordOverlap(a,b){
 // ── TIMEZONE CONVERSION ───────────────────────────────────────
 function convertToLocal(dateStr, timeStr, foreignTz){
   try{
-    // Build a date string interpreted as foreignTz time
     const [h,m]=timeStr.split(':').map(Number);
-    // Use Intl to find what UTC offset foreignTz has on that date
-    const testDate=new Date(`${dateStr}T${timeStr}:00`);
-    // Get the time in the foreign timezone
-    const foreignFormatter=new Intl.DateTimeFormat('en-US',{
-      timeZone:foreignTz,hour:'2-digit',minute:'2-digit',hour12:false
-    });
-    // Get the same UTC moment displayed in local time
-    // We need to find UTC time that equals dateStr+timeStr in foreignTz
-    // Use a reference: format a known UTC time in foreignTz and compare
+    const localTz=Intl.DateTimeFormat().resolvedOptions().timeZone; // the user's actual device timezone
+    // find the true UTC instant that reads as dateStr+timeStr when displayed in foreignTz
     const refUTC=new Date(`${dateStr}T${timeStr}:00Z`);
     const inForeign=new Intl.DateTimeFormat('en-US',{timeZone:foreignTz,hour:'2-digit',minute:'2-digit',hour12:false}).format(refUTC);
     const [fh,fm]=inForeign.split(':').map(Number);
     const diffMs=((h-fh)*60+(m-fm))*60000;
-    const localDate=new Date(refUTC.getTime()+diffMs);
-    const localH=localDate.getUTCHours();
-    const localM=localDate.getUTCMinutes();
-    return`${String(localH).padStart(2,'0')}:${String(localM).padStart(2,'0')}`;
+    const trueUTC=new Date(refUTC.getTime()+diffMs); // the real UTC instant of the foreign-time event
+    // now render that same instant in the USER's own local timezone — not UTC —
+    // and let the date roll forward/back naturally if the conversion crosses midnight
+    const localTimeStr=new Intl.DateTimeFormat('en-US',{timeZone:localTz,hour:'2-digit',minute:'2-digit',hour12:false}).format(trueUTC);
+    const localDateStr=new Intl.DateTimeFormat('en-CA',{timeZone:localTz}).format(trueUTC);
+    return{time:localTimeStr,date:localDateStr};
   }catch(e){return null}
 }
 
@@ -1105,6 +1099,7 @@ function fmt12(timeStr){
 // ─────────────────────────────────────────────────────────────
 
 const parsedCache={}; // noteId -> last parsed text, avoids duplicate API calls
+const parseGeneration={}; // noteId -> counter; only the latest triggerParse() call for a note may commit its results
 
 async function triggerParse(){
   if(!currentNoteId)return;
@@ -1119,6 +1114,13 @@ async function triggerParse(){
   if(fullText.length<4)return;                       // too short to contain a task
   if(parsedCache[currentNoteId]===fullText)return;   // unchanged since last parse — skip API
   parsedCache[currentNoteId]=fullText;
+  // guard against overlapping parses for the same note: if the user edits again
+  // before a previous AI request finishes, that earlier (now-stale) request must
+  // not be allowed to commit its results after a newer one already has — only the
+  // LATEST call for this note is allowed to write to data.tasks
+  const noteIdAtStart=currentNoteId;
+  const myGen=(parseGeneration[noteIdAtStart]=(parseGeneration[noteIdAtStart]||0)+1);
+  const isStale=()=>parseGeneration[noteIdAtStart]!==myGen;
   const priority=note.priority||'normal';
   const aiStatus=document.getElementById('ai-status');
   aiStatus.style.display='flex';
@@ -1171,6 +1173,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     }
 
     if(rr.action==='reschedule'&&rr.taskId){
+      if(isStale()){aiStatus.style.display='none';return}
       const target=data.tasks.find(t=>t.id===rr.taskId);
       if(target){
         const oldDate=target.date;
@@ -1188,6 +1191,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
       }
     }
     if(rr.action==='cancel'&&rr.taskId){
+      if(isStale()){aiStatus.style.display='none';return}
       data.tasks=data.tasks.filter(t=>t.id!==rr.taskId);
       saveData(data);renderTaskList(currentNoteId);
       if(document.getElementById('tab-cal').classList.contains('active')){renderCal();renderCalEvents()}
@@ -1214,6 +1218,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     }
     const txt=(d.content?.[0]?.text||'{"tasks":[]}').replace(/\`\`\`json|\`\`\`/g,'').trim();
     let parsed;try{parsed=JSON.parse(txt)}catch{parsed={tasks:[]}}
+    if(isStale()){aiStatus.style.display='none';return}
     if(parsed.tasks&&parsed.tasks.length){
       // wipe old auto tasks for this note, keep manual
       data.tasks=data.tasks.filter(t=>!(t.noteId===currentNoteId&&!t.manual));
@@ -1231,15 +1236,17 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
         const addressDisplay=(pt.addressDisplay&&pt.addressDisplay!=='null')?pt.addressDisplay:null;
         const addressDetail=(pt.addressDetail&&pt.addressDetail!=='null')?pt.addressDetail:null;
         const venue=(pt.venue&&pt.venue!=='null')?pt.venue:null;
-        // convert foreign time → local time
+        // convert foreign time → true local time + date (may roll to a different day)
         let localTime=taskTime;
+        let localDate=taskDate;
         if(taskTime&&foreignTz&&taskDate){
-          localTime=convertToLocal(taskDate,taskTime,foreignTz)||taskTime;
+          const converted=convertToLocal(taskDate,taskTime,foreignTz);
+          if(converted){localTime=converted.time;localDate=converted.date}
         }
         data.tasks.push({
           id:genId(),noteId:currentNoteId,
           text:pt.text.trim(),
-          date:taskDate,
+          date:localDate,
           time:localTime,
           foreignTime:taskTime,
           foreignTz,foreignCity,
@@ -1252,6 +1259,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     }
   }catch(e){
     // API unavailable — minimal local fallback
+    if(isStale())return;
     data.tasks=data.tasks.filter(t=>!(t.noteId===currentNoteId&&!t.manual));
     const lines=(title+'\n'+body).split(/\n/).map(l=>l.trim()).filter(Boolean);
     lines.forEach(line=>{
@@ -1407,7 +1415,7 @@ function renderDayDetail(dateStr){
   const el=document.getElementById('day-detail');
   const d=new Date(dateStr+'T12:00:00');
   const label=`${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-  const slots=['7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+  const slots=['0:00','1:00','2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00'];
   const slotsHTML=slots.map(slot=>{
     const hr=parseInt(slot);
     const slotTasks=timedTasks.filter(t=>parseInt(t.time.split(':')[0])===hr);
@@ -1418,7 +1426,7 @@ function renderDayDetail(dateStr){
   }).join('');
   const untimedHTML=untimedTasks.length
     ?`<div style="padding:10px 16px 6px;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-top:0.5px solid var(--border)">No time set</div>`
-      +untimedTasks.map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:0.5px solid var(--border)"><div class="task-check${t.done?' checked':''}" onclick="toggleTask('${t.id}');renderDayDetail('${dateStr}')"></div><span style="font-size:13px;${t.done?'text-decoration:line-through;color:var(--text3)':''}"> ${t.text}</span></div>`).join('')
+      +`<div style="padding:0 16px 8px;display:flex;flex-wrap:wrap;gap:6px">`+untimedTasks.map(t=>`<div class="slot-event-pill">${t.text}</div>`).join('')+`</div>`
     :'';
   const dailyHTML=dailyTasks.length
     ?`<div style="padding:10px 16px 6px;font-size:11px;font-weight:600;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;border-top:0.5px solid var(--border)">Daily routine</div>`
