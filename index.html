@@ -1513,18 +1513,9 @@ function resetDailyRoutineIfNewDay(){
 }
 
 // ── MOON LONG-PRESS + ONBOARDING HINT ────────────────────────
-// setupMoonLongPress() replaces the button with a clone of itself before
-// attaching listeners — cloneNode() preserves the onclick="showReview()"
-// HTML attribute but strips any previously-attached addEventListener
-// listeners, guaranteeing a genuinely clean slate on every call with no
-// risk of duplicate listeners (the earlier dataset-flag guard approach
-// was a no-op bug — it blocked exactly the re-invocation it existed for).
-function setupMoonLongPress(){
-  const oldBtn=document.getElementById('moon-btn');
+(function(){
+  const btn=document.getElementById('moon-btn');
   const hint=document.getElementById('moon-hint');
-  if(!oldBtn||!hint)return;
-  const btn=oldBtn.cloneNode(true);
-  oldBtn.replaceWith(btn);
   let pressTimer=null;
   let hintTimer=null;
 
@@ -1564,26 +1555,7 @@ function setupMoonLongPress(){
 
   // right-click / long-click on desktop
   btn.addEventListener('contextmenu',e=>{e.preventDefault();openReviewSettings()});
-}
-setupMoonLongPress(); // run once at page load
-
-// Re-attach fresh listeners whenever the visual viewport genuinely changes
-// size — this is the real platform signal that the on-screen keyboard just
-// showed or hid, firing regardless of WHAT triggered it (the auth OTP
-// screen, closing a note editor, or anything else with a text input).
-// Debounced since resize can fire more than once during an animated
-// keyboard transition. This is the general fix for the moon-hold-stops-
-// working-after-any-keyboard-interaction bug, not scoped to one screen.
-if(window.visualViewport){
-  let vvSettleTimer=null;
-  window.visualViewport.addEventListener('resize',()=>{
-    clearTimeout(vvSettleTimer);
-    vvSettleTimer=setTimeout(()=>{
-      setupMoonLongPress();
-      showToast('DEBUG: viewport resize settled, moon listeners re-attached'); // ⭐ TEMP DEBUG — remove once confirmed fixed
-    },300);
-  });
-}
+})();
 
 function openReviewSettings(){
   const saved=localStorage.getItem('flow_review_time')||'22:00';
