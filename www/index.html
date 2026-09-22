@@ -608,6 +608,7 @@ async function initAuth(){
     await fetchAllData();
     renderNotesList();renderCal();
     initRevenueCat();
+    setupMoonLongPress();
   }else{
     document.getElementById('auth-screen').style.display='flex';
   }
@@ -618,6 +619,7 @@ async function initAuth(){
       await fetchAllData();
       renderNotesList();renderCal();
       initRevenueCat();
+      setupMoonLongPress();
     }
     if(event==='SIGNED_OUT'){
       currentUser=null;cache={notes:[],tasks:[]};rcConfigured=false;
@@ -1493,9 +1495,11 @@ function resetDailyRoutineIfNewDay(){
 }
 
 // ── MOON LONG-PRESS + ONBOARDING HINT ────────────────────────
-(function(){
+function setupMoonLongPress(){
   const btn=document.getElementById('moon-btn');
   const hint=document.getElementById('moon-hint');
+  if(!btn||!hint||btn.dataset.longPressReady)return; // already wired up — avoid attaching duplicate listeners
+  btn.dataset.longPressReady='1';
   let pressTimer=null;
   let hintTimer=null;
 
@@ -1535,7 +1539,8 @@ function resetDailyRoutineIfNewDay(){
 
   // right-click / long-click on desktop
   btn.addEventListener('contextmenu',e=>{e.preventDefault();openReviewSettings()});
-})();
+}
+setupMoonLongPress(); // run once at page load, same as before
 
 function openReviewSettings(){
   const saved=localStorage.getItem('flow_review_time')||'22:00';
