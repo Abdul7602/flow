@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json()
     const event = body.event
+    console.log('[webhook] received event:', JSON.stringify(event)) // ⭐ TEMP DEBUG — remove once the sync issue is confirmed fixed
     if (!event) return new Response(JSON.stringify({ ok: true, note: 'no event' }))
 
     // app_user_id is set to the Supabase user's UUID when we configure the SDK client-side
@@ -46,10 +47,10 @@ Deno.serve(async (req) => {
       case 'INITIAL_PURCHASE':
       case 'RENEWAL':
       case 'UNCANCELLATION':
-        status = 'active'
-        break
-      case 'TRIAL_STARTED':
-        status = 'trial'
+        // a trial purchase also arrives here as INITIAL_PURCHASE with
+        // period_type:'TRIAL' — TRIAL_STARTED is not a real RevenueCat
+        // webhook event type, so this correctly catches trials too
+        status = event.period_type === 'TRIAL' ? 'trial' : 'active'
         break
       case 'CANCELLATION':
         // user cancelled but may still have access until expiration — leave status as-is,
@@ -63,14 +64,20 @@ Deno.serve(async (req) => {
         break
     }
 
+    console.log('[webhook] resolved status:', status, 'for userId:', userId) // ⭐ TEMP DEBUG
+
     if (status) {
-      await supabase.from('settings')
+      const { error: updateErr, data: updateData } = await supabase.from('settings')
         .update({
           subscription_status: status,
           subscription_expires_at: expiresAt,
           revenuecat_user_id: userId,
         })
         .eq('user_id', userId)
+        .select()
+      console.log('[webhook] update result:', JSON.stringify({ updateErr, rowsAffected: updateData?.length })) // ⭐ TEMP DEBUG
+    } else {
+      console.log('[webhook] status stayed null — event.type was:', event.type) // ⭐ TEMP DEBUG
     }
 
     return new Response(JSON.stringify({ ok: true }), {
