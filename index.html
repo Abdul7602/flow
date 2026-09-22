@@ -719,10 +719,12 @@ function renderCalEvents(){
   const pinnedId=data.notes.find(n=>n.pinned)?.id;
   const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(selectedCalDay).padStart(2,'0')}`;
   // regular tasks: must match the selected date, exclude pinned
-  const regularTasks=data.tasks.filter(t=>t.date===dateStr&&t.noteId!==pinnedId);
+  const regularTasks=data.tasks.filter(t=>t.date===dateStr&&t.noteId!==pinnedId)
+    .sort((a,b)=>(a.done?1:0)-(b.done?1:0));
   const todayStr=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   // daily tasks only on today and future
-  const dailyTasks=pinnedId&&dateStr>=todayStr?data.tasks.filter(t=>t.noteId===pinnedId):[];
+  const dailyTasks=pinnedId&&dateStr>=todayStr?data.tasks.filter(t=>t.noteId===pinnedId)
+    .sort((a,b)=>(a.done?1:0)-(b.done?1:0)):[];
   const el=document.getElementById('cal-events');
 
   function taskRow(t){
@@ -1305,7 +1307,8 @@ function addressHTML(address, addressDisplay, addressDetail, venue){
 
 function renderTaskList(noteId){
   const data=loadData();
-  const tasks=data.tasks.filter(t=>t.noteId===noteId);
+  const tasks=data.tasks.filter(t=>t.noteId===noteId)
+    .sort((a,b)=>(a.done?1:0)-(b.done?1:0)); // completed items sink to the bottom, order preserved otherwise
   const el=document.getElementById('task-list');
   if(!tasks.length){el.innerHTML='';return}
   el.innerHTML=tasks.map(t=>{
@@ -1431,7 +1434,8 @@ function renderDayDetail(dateStr){
   const timedTasks=tasks.filter(t=>t.time);
   const untimedTasks=tasks.filter(t=>!t.time);
   const todayStr2=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const dailyTasks=pinnedId&&dateStr>=todayStr2?data.tasks.filter(t=>t.noteId===pinnedId):[];
+  const dailyTasks=pinnedId&&dateStr>=todayStr2?data.tasks.filter(t=>t.noteId===pinnedId)
+    .sort((a,b)=>(a.done?1:0)-(b.done?1:0)):[];
   const el=document.getElementById('day-detail');
   const d=new Date(dateStr+'T12:00:00');
   const label=`${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
