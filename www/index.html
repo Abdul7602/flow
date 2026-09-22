@@ -432,14 +432,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 // ⭐ TEMPORARY iOS DEBUG ERROR BANNER — safe to delete this whole block once
 // iOS is stable and no longer needs debugging without Safari's remote inspector.
 // Shows any uncaught JS error or unhandled promise rejection directly on screen.
-// pointer-events:none added deliberately — a debug overlay must never be able
-// to block real touches to the app underneath it.
 (function(){
   let errorBox=null;
   function showError(msg){
     if(!errorBox){
       errorBox=document.createElement('div');
-      errorBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px 14px;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word;pointer-events:none';
+      errorBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px 14px;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word';
       document.body.appendChild(errorBox);
     }
     const line=document.createElement('div');
@@ -610,28 +608,16 @@ async function initAuth(){
     await fetchAllData();
     renderNotesList();renderCal();
     initRevenueCat();
-    setupMoonLongPress();
   }else{
     document.getElementById('auth-screen').style.display='flex';
   }
   supa.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session){
       currentUser=session.user;
-      // the OTP input almost certainly still has focus (and the keyboard is still
-      // up or mid-dismissal) at this exact moment — force it closed and give the
-      // WebView a moment to settle its viewport before the main UI becomes
-      // interactive, otherwise touch hit-testing can be left stale (this is the
-      // likely cause of the moon-button long-press not registering right after
-      // a fresh sign-up specifically, since that's the only path involving
-      // keyboard entry immediately before this transition)
-      if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
       document.getElementById('auth-screen').style.display='none';
-      await new Promise(r=>setTimeout(r,150));
-      window.scrollTo(0,0);
       await fetchAllData();
       renderNotesList();renderCal();
       initRevenueCat();
-      setupMoonLongPress();
     }
     if(event==='SIGNED_OUT'){
       currentUser=null;cache={notes:[],tasks:[]};rcConfigured=false;
@@ -1507,12 +1493,9 @@ function resetDailyRoutineIfNewDay(){
 }
 
 // ── MOON LONG-PRESS + ONBOARDING HINT ────────────────────────
-function setupMoonLongPress(){
+(function(){
   const btn=document.getElementById('moon-btn');
   const hint=document.getElementById('moon-hint');
-  showToast('DEBUG: setupMoonLongPress called, btn='+(!!btn)+' alreadyReady='+(!!btn?.dataset.longPressReady)); // ⭐ TEMP DEBUG
-  if(!btn||!hint||btn.dataset.longPressReady)return; // already wired up — avoid attaching duplicate listeners
-  btn.dataset.longPressReady='1';
   let pressTimer=null;
   let hintTimer=null;
 
@@ -1536,30 +1519,23 @@ function setupMoonLongPress(){
 
   // long press for mobile
   btn.addEventListener('touchstart',e=>{
-    showToast('DEBUG: touchstart fired'); // ⭐ TEMP DEBUG — remove once moon-hold bug is found
     pressTimer=setTimeout(()=>{
       e.preventDefault();
       hint.classList.remove('show');
-      showToast('DEBUG: 600ms timer completed → opening settings'); // ⭐ TEMP DEBUG
       openReviewSettings();
     },600);
     // show hint after 200ms hold
     setTimeout(()=>{if(pressTimer)showHint()},200);
   },{passive:true});
   btn.addEventListener('touchend',()=>{
-    showToast('DEBUG: touchend fired, timer was '+(pressTimer?'still pending (cancelled now)':'already cleared')); // ⭐ TEMP DEBUG
     clearTimeout(pressTimer);pressTimer=null;
     setTimeout(()=>hint.classList.remove('show'),800);
   });
-  btn.addEventListener('touchmove',()=>{
-    showToast('DEBUG: touchmove fired — this cancels the pending hold timer'); // ⭐ TEMP DEBUG
-    clearTimeout(pressTimer);pressTimer=null;
-  });
+  btn.addEventListener('touchmove',()=>{clearTimeout(pressTimer);pressTimer=null});
 
   // right-click / long-click on desktop
   btn.addEventListener('contextmenu',e=>{e.preventDefault();openReviewSettings()});
-}
-setupMoonLongPress(); // run once at page load, same as before
+})();
 
 function openReviewSettings(){
   const saved=localStorage.getItem('flow_review_time')||'22:00';
