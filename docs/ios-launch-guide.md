@@ -86,6 +86,22 @@ Copy-pasting the `.p8` file's contents through Notepad had dropped the `-----BEG
 
 ---
 
+## Known unresolved bug — moon button long-press on first session after fresh sign-up
+
+**Symptom:** immediately after a brand-new sign-up (never a returning session), the moon icon's simple tap works normally, but holding it to open Settings does nothing. Closing the app fully and reopening it fixes it permanently for that account — the bug only ever appears once, on the very first session right after sign-up.
+
+**Four fix attempts tried and reverted (2026-09-21), none resolved it:**
+1. Made the long-press listener setup re-invocable and explicitly re-ran it on the `SIGNED_IN` auth event — turned out to be a no-op, since its own duplicate-listener guard blocked the re-invocation.
+2. Added diagnostic toasts directly on the touch handlers — confirmed `touchstart` never fires at all during the broken state (not even once), which rules out a simple "timer got cancelled" explanation.
+3. Added `pointer-events:none` to the temporary debug error banner, on the theory that a silently-firing error might be creating an invisible touch-blocking overlay — tested, no change, ruling this out definitively.
+4. Added an explicit `blur()` of the OTP input plus a viewport-settle delay right at the sign-in transition, on the theory that iOS WebView touch hit-testing can go stale right after a keyboard dismissal — tested, no change.
+
+All four attempts were fully reverted (back to the exact code from before EDIT no.84) rather than left in as unproven speculative changes, given the real regression risk of accumulating untested fixes this close to submission.
+
+**Severity assessment: low.** This only affects the first-ever session immediately after sign-up, self-resolves with one app restart (which most users do naturally anyway on a fresh install), and doesn't affect any other functionality — the rest of the app, including all other button interactions, is unaffected.
+
+**What would actually solve this:** live browser console access (Safari's remote Web Inspector, which requires a Mac) would very likely surface the real cause — an actual thrown error, a genuine event-listener gap, or something in the WebView's touch-handling state — in minutes, versus the extensive blind guessing attempted here. Revisit this once that access is available, rather than continuing to guess without it.
+
 ## Subscriptions — current state
 
 Both products exist in App Store Connect, RevenueCat is connected (App Store Connect API key + Server Notifications configured), and both are attached to the same `flow_daily_pro` entitlement and the `default` offering (same offering Android uses — one offering serves both platforms' correct product automatically). A real sandbox purchase on Monthly has been confirmed successful end-to-end.
