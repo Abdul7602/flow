@@ -432,12 +432,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 // ⭐ TEMPORARY iOS DEBUG ERROR BANNER — safe to delete this whole block once
 // iOS is stable and no longer needs debugging without Safari's remote inspector.
 // Shows any uncaught JS error or unhandled promise rejection directly on screen.
+// pointer-events:none added deliberately — a debug overlay must never be able
+// to block real touches to the app underneath it.
 (function(){
   let errorBox=null;
   function showError(msg){
     if(!errorBox){
       errorBox=document.createElement('div');
-      errorBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px 14px;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word';
+      errorBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;padding:10px 14px;font-family:monospace;font-size:11px;max-height:40vh;overflow-y:auto;white-space:pre-wrap;word-break:break-word;pointer-events:none';
       document.body.appendChild(errorBox);
     }
     const line=document.createElement('div');
