@@ -86,21 +86,25 @@ Copy-pasting the `.p8` file's contents through Notepad had dropped the `-----BEG
 
 ---
 
-## Known unresolved bug — moon button long-press on first session after fresh sign-up
+## Moon button long-press bug — corrected understanding, new fix attempted (2026-09-22)
 
-**Symptom:** immediately after a brand-new sign-up (never a returning session), the moon icon's simple tap works normally, but holding it to open Settings does nothing. Closing the app fully and reopening it fixes it permanently for that account — the bug only ever appears once, on the very first session right after sign-up.
+**Original (INCORRECT) understanding:** thought this only happened once, on the very first session immediately after a fresh sign-up, and that a single app restart fixed it permanently for that account.
 
-**Four fix attempts tried and reverted (2026-09-21), none resolved it:**
-1. Made the long-press listener setup re-invocable and explicitly re-ran it on the `SIGNED_IN` auth event — turned out to be a no-op, since its own duplicate-listener guard blocked the re-invocation.
-2. Added diagnostic toasts directly on the touch handlers — confirmed `touchstart` never fires at all during the broken state (not even once), which rules out a simple "timer got cancelled" explanation.
-3. Added `pointer-events:none` to the temporary debug error banner, on the theory that a silently-firing error might be creating an invisible touch-blocking overlay — tested, no change, ruling this out definitively.
-4. Added an explicit `blur()` of the OTP input plus a viewport-settle delay right at the sign-in transition, on the theory that iOS WebView touch hit-testing can go stale right after a keyboard dismissal — tested, no change.
+**Corrected understanding, confirmed 2026-09-22:** the bug is broader and recurs — it happens after **any** on-screen keyboard show/hide, not just the sign-up OTP screen. Specifically confirmed: write and close a note (which also summons and dismisses the keyboard) → the moon hold breaks again, even in an already-"working" session that had been fixed by a prior restart. A restart fixes it again, but only until the next keyboard interaction. This makes it a genuinely recurring, frequent-impact bug, not a rare first-session edge case — corrected here after understating it in an earlier version of this doc.
 
-All four attempts were fully reverted (back to the exact code from before EDIT no.84) rather than left in as unproven speculative changes, given the real regression risk of accumulating untested fixes this close to submission.
+**Root cause candidate confirmed by code inspection:** both the auth screen (OTP input) and `closeEditor()` (note title/body inputs) hide/replace the relevant UI **without ever explicitly blurring the focused input first** — the keyboard-summoning element still technically has focus when the transition happens.
 
-**Severity assessment: low.** This only affects the first-ever session immediately after sign-up, self-resolves with one app restart (which most users do naturally anyway on a fresh install), and doesn't affect any other functionality — the rest of the app, including all other button interactions, is unaffected.
+**Four earlier fix attempts (2026-09-21), all reverted, none resolved it:**
+1. Made the long-press listener setup re-invocable and re-ran it on the `SIGNED_IN` auth event — turned out to be a no-op, since its own duplicate-listener guard blocked the re-invocation.
+2. Added diagnostic toasts directly on the touch handlers — confirmed `touchstart` never fires at all during the broken state.
+3. Added `pointer-events:none` to the temporary debug error banner — tested, no change, ruled out.
+4. Added an explicit `blur()` + viewport-settle delay, but only at the auth sign-in transition specifically — tested, no change (likely because it was scoped too narrowly to just one trigger point, not the general pattern).
 
-**What would actually solve this:** live browser console access (Safari's remote Web Inspector, which requires a Mac) would very likely surface the real cause — an actual thrown error, a genuine event-listener gap, or something in the WebView's touch-handling state — in minutes, versus the extensive blind guessing attempted here. Revisit this once that access is available, rather than continuing to guess without it.
+**New attempt (2026-09-22, EDIT no.96), not yet confirmed:** rewrote the long-press setup to use node-cloning (`cloneNode` + `replaceWith`) for guaranteed-clean re-attachment with zero duplicate-listener risk, and added a global `window.visualViewport` `resize` listener (debounced) that re-runs the setup automatically whenever the keyboard genuinely shows or hides **anywhere** in the app — using the real platform signal for keyboard state change, rather than a fixed delay tied to one specific screen. This is a general fix, not scoped to auth or note-closing specifically. A temporary diagnostic toast is still in place to confirm the mechanism fires; remove once confirmed working.
+
+**Severity assessment: UPGRADED from low to moderate**, given the confirmed recurring, frequent-impact nature — this can plausibly happen many times in normal daily use (anyone who writes notes and then checks the moon button), not just once per install.
+
+**If this new attempt doesn't resolve it either:** live browser console access (Safari's remote Web Inspector, requires a Mac) remains the most reliable path to a definitive answer — worth prioritizing getting that access if this round of testing doesn't confirm a fix.
 
 ## Subscriptions — current state
 
