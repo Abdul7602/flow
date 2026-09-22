@@ -1871,33 +1871,24 @@ async function togglePush(){
     const state=await getPushState();
 
     if(isNativeApp()){
-      const plugins=window.Capacitor.Plugins||{};
-      const{PushNotifications}=plugins;
-      showToast('DEBUG: PushNotifications plugin = '+(PushNotifications?'found':'MISSING')); // ⭐ TEMP DEBUG — remove once notification bug is fixed
+      const{PushNotifications}=window.Capacitor.Plugins||{};
       if(state==='on'){
         if(sw)sw.classList.remove('on');
         if(currentUser)await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
         showToast('Notifications off');
       }else if(state==='off'){
         if(sw)sw.classList.add('on');
-        const checkResult=await PushNotifications.checkPermissions(); // ⭐ TEMP DEBUG
-        showToast('DEBUG: checkPermissions = '+JSON.stringify(checkResult)); // ⭐ TEMP DEBUG
         const perm=await PushNotifications.requestPermissions();
-        showToast('DEBUG: requestPermissions = '+JSON.stringify(perm)); // ⭐ TEMP DEBUG
         if(perm.receive==='granted'){
           await PushNotifications.register();
-          showToast('DEBUG: register() called, waiting for token…'); // ⭐ TEMP DEBUG
+          showToast('You\'ll get your review reminder 🔔');
           // token arrives via the 'registration' listener set up at startup — don't
           // race ahead of it by re-checking Supabase before the token has landed
           awaitingNativeToken=true;
           // safety net: if no token/error arrives within 15s, stop waiting and
           // show the real current state rather than leaving the switch stuck
           setTimeout(async()=>{
-            const stillOff=(await getPushState())==='off';
-            if(stillOff){
-              showToast('DEBUG: no token arrived after 15s — timed out'); // ⭐ TEMP DEBUG
-              refreshNotifBtn();
-            }
+            if((await getPushState())==='off')refreshNotifBtn();
           },15000);
         }else{
           if(sw)sw.classList.remove('on'); // permission actually denied — don't leave switch stuck visually "on"
@@ -1947,7 +1938,6 @@ async function togglePush(){
 if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNotifications){
   const{PushNotifications}=window.Capacitor.Plugins;
   PushNotifications.addListener('registration',async token=>{
-    showToast('DEBUG: registration listener fired, token='+(token?.value?token.value.slice(0,12)+'…':'MISSING')); // ⭐ TEMP DEBUG
     if(!currentUser||!token?.value)return;
     try{
       await supa.from('push_subscriptions').delete().eq('user_id',currentUser.id);
@@ -1955,16 +1945,15 @@ if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNoti
         user_id:currentUser.id,
         subscription:{native:true,platform:(window.Capacitor.getPlatform?window.Capacitor.getPlatform():'ios'),token:token.value}
       });
-      if(insErr){showToast('DEBUG: insert failed: '+insErr.message);throw insErr} // ⭐ TEMP DEBUG
-      showToast('DEBUG: token saved to Supabase ✓'); // ⭐ TEMP DEBUG
+      if(insErr)throw insErr;
     }catch(e){
-      showToast('DEBUG: registration listener error: '+(e.message||e)); // ⭐ TEMP DEBUG
+      console.error('push token save error',e);
     }
     refreshNotifBtn();
   });
   PushNotifications.addListener('registrationError',err=>{
     console.error('native push registration error',err);
-    showToast('DEBUG: registrationError fired: '+JSON.stringify(err)); // ⭐ TEMP DEBUG
+    showToast('Could not enable notifications');
   });
 }
 document.addEventListener('click',e=>{
