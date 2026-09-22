@@ -617,7 +617,17 @@ async function initAuth(){
   supa.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session){
       currentUser=session.user;
+      // the OTP input almost certainly still has focus (and the keyboard is still
+      // up or mid-dismissal) at this exact moment — force it closed and give the
+      // WebView a moment to settle its viewport before the main UI becomes
+      // interactive, otherwise touch hit-testing can be left stale (this is the
+      // likely cause of the moon-button long-press not registering right after
+      // a fresh sign-up specifically, since that's the only path involving
+      // keyboard entry immediately before this transition)
+      if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
       document.getElementById('auth-screen').style.display='none';
+      await new Promise(r=>setTimeout(r,150));
+      window.scrollTo(0,0);
       await fetchAllData();
       renderNotesList();renderCal();
       initRevenueCat();
