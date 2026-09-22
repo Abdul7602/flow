@@ -40,6 +40,12 @@
     --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
   }
 }
+/* Premium accent — while an active/trial subscription is genuinely still
+   entitled, the whole app's accent switches from orange to violet. Higher
+   specificity (:root.premium-active) than the plain :root blocks above
+   (light or dark) lets this win in both modes without duplicating every
+   other token. Toggled by applyPremiumAccent() based on checkUsage(). */
+:root.premium-active{--today:#7C3AED}
 html{background:#0a0a0a}
 body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;height:100dvh;width:100%;max-width:420px;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
 @media(min-width:421px){
@@ -403,7 +409,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
         <div id="account-email" style="font-size:14px;color:var(--text2);margin-bottom:12px"></div>
         <div id="usage-line" style="font-size:12px;color:var(--text3);margin-bottom:16px"></div>
         <div id="premium-status-line" style="font-size:12px;color:var(--text3);margin-bottom:16px"></div>
-        <button onclick="openPaywall()" id="upgrade-btn" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,var(--today),#e8871a);color:#fff;border:none;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px">⚡ Upgrade to Premium</button>
+        <button onclick="openPaywall()" id="upgrade-btn" style="width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,#3B0764,#A855F7);color:#fff;border:none;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px">⚡ Upgrade to Premium</button>
         <button onclick="logout()" style="width:100%;padding:12px;border-radius:12px;background:transparent;color:var(--urgent);border:1px solid var(--border2);font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer">Sign out</button>
         <button onclick="deleteAccount()" style="width:100%;margin-top:10px;padding:12px;border-radius:12px;background:var(--urgent-light);color:var(--urgent);border:1px solid var(--urgent);font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer">🗑 Delete account &amp; all data</button>
       </div>
@@ -605,6 +611,7 @@ async function initAuth(){
   if(session){
     currentUser=session.user;
     document.getElementById('auth-screen').style.display='none';
+    checkUsage(); // fire-and-forget — applies the orange/violet accent as early as possible
     await fetchAllData();
     renderNotesList();renderCal();
     initRevenueCat();
@@ -615,12 +622,14 @@ async function initAuth(){
     if(event==='SIGNED_IN'&&session){
       currentUser=session.user;
       document.getElementById('auth-screen').style.display='none';
+      checkUsage();
       await fetchAllData();
       renderNotesList();renderCal();
       initRevenueCat();
     }
     if(event==='SIGNED_OUT'){
       currentUser=null;cache={notes:[],tasks:[]};rcConfigured=false;
+      applyPremiumAccent(false);
       document.getElementById('auth-screen').style.display='flex';
     }
   });
@@ -640,8 +649,19 @@ function showLimitBanner(msg){
 async function checkUsage(){
   try{
     const d=await claudeCall({usageCheck:true});
-    return d; // {used, limit, remaining}
+    applyPremiumAccent(!!d?.subscribed);
+    return d; // {used, limit, remaining, subscribed}
   }catch{return null}
+}
+
+// Switches the whole app's accent between orange (free) and violet (premium),
+// based on genuine current entitlement (checkUsage already accounts for
+// expiration, not just a stale status flag). Called from checkUsage() itself
+// so every existing call site (Settings, post-purchase polling) applies it
+// automatically, plus once explicitly at app load so a returning premium
+// user sees violet immediately, not only after opening Settings.
+function applyPremiumAccent(subscribed){
+  document.documentElement.classList.toggle('premium-active',!!subscribed);
 }
 
 function switchTab(tab){
