@@ -1498,6 +1498,7 @@ function resetDailyRoutineIfNewDay(){
 function setupMoonLongPress(){
   const btn=document.getElementById('moon-btn');
   const hint=document.getElementById('moon-hint');
+  showToast('DEBUG: setupMoonLongPress called, btn='+(!!btn)+' alreadyReady='+(!!btn?.dataset.longPressReady)); // ⭐ TEMP DEBUG
   if(!btn||!hint||btn.dataset.longPressReady)return; // already wired up — avoid attaching duplicate listeners
   btn.dataset.longPressReady='1';
   let pressTimer=null;
@@ -1523,19 +1524,25 @@ function setupMoonLongPress(){
 
   // long press for mobile
   btn.addEventListener('touchstart',e=>{
+    showToast('DEBUG: touchstart fired'); // ⭐ TEMP DEBUG — remove once moon-hold bug is found
     pressTimer=setTimeout(()=>{
       e.preventDefault();
       hint.classList.remove('show');
+      showToast('DEBUG: 600ms timer completed → opening settings'); // ⭐ TEMP DEBUG
       openReviewSettings();
     },600);
     // show hint after 200ms hold
     setTimeout(()=>{if(pressTimer)showHint()},200);
   },{passive:true});
   btn.addEventListener('touchend',()=>{
+    showToast('DEBUG: touchend fired, timer was '+(pressTimer?'still pending (cancelled now)':'already cleared')); // ⭐ TEMP DEBUG
     clearTimeout(pressTimer);pressTimer=null;
     setTimeout(()=>hint.classList.remove('show'),800);
   });
-  btn.addEventListener('touchmove',()=>{clearTimeout(pressTimer);pressTimer=null});
+  btn.addEventListener('touchmove',()=>{
+    showToast('DEBUG: touchmove fired — this cancels the pending hold timer'); // ⭐ TEMP DEBUG
+    clearTimeout(pressTimer);pressTimer=null;
+  });
 
   // right-click / long-click on desktop
   btn.addEventListener('contextmenu',e=>{e.preventDefault();openReviewSettings()});
