@@ -15,11 +15,15 @@ A one-time first-open moment for brand-new sign-ups: a few seconds of animated n
 
 To change the accent, search for `#d4680a` in `index.html` — it appears twice (the period dot, the button background).
 
+## Sequence, as currently timed
+
+Everything except "Flow." itself appears first: "Welcome to" at `.3s`, the tagline at `.6s`, the button at `.9s` — the layout space for "Flow." is already reserved (it's just invisible via `opacity:0`, still occupying its spot in the flex column), so nothing shifts when it later appears. The shooting star doesn't begin its journey until `1.3s` — after everything else has settled — then travels for `1.3s`, landing and fading out at `2.6s`, the exact moment "Flow." fades in. The star arrives last, delivering the word as the final payoff, rather than as a mid-sequence flourish.
+
 ## Shooting star choreography
 
-The star is deliberately timed and positioned to land exactly where "Flow." renders, then fade out the instant the word fades in — the visual effect of the star delivering the word from space. Concretely: starts at `(40px, 60px)`, travels via `translate(155px, 309px)` at a `rotate(63deg)` angle (a steep down-right diagonal, not a shallow horizontal streak), landing at roughly the frame's horizontal and vertical center — where the flex-centered text block places "Flow." given the frame's actual dimensions and font sizes. Timed to complete (`1.3s` duration + `.3s` delay = `1.6s` total) at the exact same `animation-delay` the "Flow." text itself uses to fade in, so the hand-off is simultaneous.
+The star is deliberately timed and positioned to land exactly where "Flow." renders, then fade out the instant the word fades in — the visual effect of the star delivering the word from space. Concretely: starts at `(40px, 60px)`, travels via `translate(155px, 309px)` at a `rotate(63deg)` angle (a steep down-right diagonal, not a shallow horizontal streak), landing at roughly the frame's horizontal and vertical center — where the flex-centered text block places "Flow." given the frame's actual dimensions and font sizes. Timed to complete (`1.3s` duration + `1.3s` delay = `2.6s` total) at the exact same `animation-delay` the "Flow." text itself uses to fade in, so the hand-off is simultaneous.
 
-If this needs retuning once actually previewed live (browser text rendering can shift the exact landing spot slightly): adjust the `translate()` end values in the `@keyframes shoot` rule and/or the star div's own `top`/`left` starting position — the animation duration/delay should stay matched to "Flow."'s own `animation-delay` (currently `1.6s`) for the hand-off to still land correctly.
+If this needs retuning once actually previewed live (browser text rendering can shift the exact landing spot slightly): adjust the `translate()` end values in the `@keyframes shoot` rule and/or the star div's own `top`/`left` starting position — the animation duration/delay should stay matched to "Flow."'s own `animation-delay` (currently `2.6s`) for the hand-off to still land correctly.
 
 ## History / how this evolved
 
