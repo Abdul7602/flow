@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow — Welcome Screen Concept</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#050508;display:flex;justify-content:center;padding:24px 0}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
+@keyframes twinkle-dim{0%,100%{opacity:.08}50%{opacity:.5}}
+@keyframes shoot{0%{transform:translate(-40px,-10px) rotate(35deg);opacity:0}12%{opacity:1}70%{transform:translate(230px,180px) rotate(35deg);opacity:1}100%{transform:translate(260px,205px) rotate(35deg);opacity:0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div style="width:390px;height:844px;box-sizing:border-box;background:#050508;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;border-radius:12px;">
+
+<!-- bright foreground stars -->
+<div style="position:absolute;top:64px;left:52px;width:3px;height:3px;border-radius:50%;background:#ffffff;animation:twinkle 2.6s ease-in-out infinite;animation-delay:.2s"></div>
+<div style="position:absolute;top:118px;left:300px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 3.1s ease-in-out infinite;animation-delay:.9s"></div>
+<div style="position:absolute;top:90px;left:190px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 2.2s ease-in-out infinite;animation-delay:1.4s"></div>
+<div style="position:absolute;top:180px;left:70px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 2.8s ease-in-out infinite;animation-delay:.5s"></div>
+<div style="position:absolute;top:150px;left:335px;width:3px;height:3px;border-radius:50%;background:#ffffff;animation:twinkle 3.4s ease-in-out infinite;animation-delay:1.8s"></div>
+<div style="position:absolute;top:230px;left:250px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 2.4s ease-in-out infinite;animation-delay:.7s"></div>
+<div style="position:absolute;top:60px;left:230px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 3.0s ease-in-out infinite;animation-delay:2.1s"></div>
+<div style="position:absolute;top:270px;left:40px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 2.6s ease-in-out infinite;animation-delay:1.1s"></div>
+<div style="position:absolute;top:40px;left:130px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 2.9s ease-in-out infinite;animation-delay:.3s"></div>
+<div style="position:absolute;top:200px;left:350px;width:3px;height:3px;border-radius:50%;background:#ffffff;animation:twinkle 2.5s ease-in-out infinite;animation-delay:1.6s"></div>
+<div style="position:absolute;top:340px;left:20px;width:3px;height:3px;border-radius:50%;background:#ffffff;animation:twinkle 2.7s ease-in-out infinite;animation-delay:.6s"></div>
+<div style="position:absolute;top:20px;left:340px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 3.2s ease-in-out infinite;animation-delay:1.2s"></div>
+<div style="position:absolute;top:100px;left:15px;width:2px;height:2px;border-radius:50%;background:#fff6e6;animation:twinkle 2.9s ease-in-out infinite;animation-delay:.8s"></div>
+<div style="position:absolute;top:160px;left:365px;width:2px;height:2px;border-radius:50%;background:#e8ecff;animation:twinkle 2.5s ease-in-out infinite;animation-delay:1.9s"></div>
+<div style="position:absolute;top:290px;left:180px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle 3.1s ease-in-out infinite;animation-delay:.4s"></div>
+
+<!-- faint background stars, scattered across the whole frame for depth -->
+<div style="position:absolute;top:10px;left:80px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.4s ease-in-out infinite;animation-delay:.1s"></div>
+<div style="position:absolute;top:45px;left:280px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.8s ease-in-out infinite;animation-delay:1.3s"></div>
+<div style="position:absolute;top:130px;left:110px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.6s ease-in-out infinite;animation-delay:.7s"></div>
+<div style="position:absolute;top:75px;left:160px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.6s ease-in-out infinite;animation-delay:2.0s"></div>
+<div style="position:absolute;top:210px;left:310px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.0s ease-in-out infinite;animation-delay:.5s"></div>
+<div style="position:absolute;top:250px;left:100px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.3s ease-in-out infinite;animation-delay:1.6s"></div>
+<div style="position:absolute;top:320px;left:250px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.7s ease-in-out infinite;animation-delay:.9s"></div>
+<div style="position:absolute;top:370px;left:90px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.5s ease-in-out infinite;animation-delay:.3s"></div>
+<div style="position:absolute;top:5px;left:200px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.9s ease-in-out infinite;animation-delay:1.8s"></div>
+<div style="position:absolute;top:400px;left:340px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.1s ease-in-out infinite;animation-delay:.6s"></div>
+<div style="position:absolute;top:600px;left:35px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.4s ease-in-out infinite;animation-delay:1.1s"></div>
+<div style="position:absolute;top:650px;left:360px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.8s ease-in-out infinite;animation-delay:.4s"></div>
+<div style="position:absolute;top:720px;left:60px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.2s ease-in-out infinite;animation-delay:1.5s"></div>
+<div style="position:absolute;top:780px;left:320px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.6s ease-in-out infinite;animation-delay:.2s"></div>
+<div style="position:absolute;top:560px;left:200px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.0s ease-in-out infinite;animation-delay:1.0s"></div>
+<div style="position:absolute;top:500px;left:15px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.3s ease-in-out infinite;animation-delay:.8s"></div>
+<div style="position:absolute;top:460px;left:370px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.7s ease-in-out infinite;animation-delay:1.7s"></div>
+
+<!-- tiny loose clusters, a couple of stars very close together -->
+<div style="position:absolute;top:112px;left:255px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle-dim 2.9s ease-in-out infinite;animation-delay:.5s"></div>
+<div style="position:absolute;top:117px;left:262px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.2s ease-in-out infinite;animation-delay:1.3s"></div>
+<div style="position:absolute;top:108px;left:266px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle 2.5s ease-in-out infinite;animation-delay:.9s"></div>
+<div style="position:absolute;top:335px;left:305px;width:2px;height:2px;border-radius:50%;background:#ffffff;animation:twinkle-dim 3.1s ease-in-out infinite;animation-delay:.4s"></div>
+<div style="position:absolute;top:340px;left:312px;width:1px;height:1px;border-radius:50%;background:#ffffff;animation:twinkle 2.7s ease-in-out infinite;animation-delay:1.6s"></div>
+
+<!-- shooting star — deliberately hardcoded to Midnight Purple (#3B0764), independent of the
+     main accent below. Locked in this way by explicit request: "keep the shooting star purple"
+     regardless of what the rest of the screen's accent is set to. -->
+<div style="position:absolute;top:40px;left:30px;width:56px;height:2px;background:linear-gradient(90deg,transparent,#3B0764);border-radius:2px;animation:shoot 1.5s ease-out 1;animation-delay:.4s"></div>
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 40px; text-align: center;">
+<div style="font-size:15px;color:#9a9aa8;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:1.3s">Welcome to</div>
+<div style="font-size:44px;font-weight:500;color:#ffffff;margin-top:2px;opacity:0;animation:fadeUp .7s ease-out forwards;animation-delay:1.6s">Flow<span style="color:#d4680a">.</span></div>
+<div style="font-size:14px;color:#767683;margin-top:14px;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:2.1s">where your journey starts flowing</div>
+</div>
+
+<div style="padding:0 24px 44px;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:3.0s">
+<button style="width:100%;height:52px;border-radius:14px;border:none;background:#d4680a;color:#ffffff;font-size:15px;font-weight:500;">Let's flow</button>
+</div>
+
+</div>
+</body>
+</html>
