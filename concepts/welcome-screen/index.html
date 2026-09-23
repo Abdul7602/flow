@@ -8,7 +8,7 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#050508;display:flex;justify-content:center;padding:24px 0}
 @keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
 @keyframes twinkle-dim{0%,100%{opacity:.08}50%{opacity:.5}}
-@keyframes shoot{0%{transform:translate(0,0) rotate(63deg);opacity:0}10%{opacity:1}85%{transform:translate(155px,309px) rotate(63deg);opacity:1}100%{transform:translate(155px,309px) rotate(63deg);opacity:0}}
+@keyframes shoot{0%{transform:translate(0,0) rotate(63deg);opacity:0}10%{opacity:1}85%{transform:translate(205px,409px) rotate(63deg);opacity:1}100%{transform:translate(205px,409px) rotate(63deg);opacity:0}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
@@ -62,7 +62,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif
 <!-- shooting star — deliberately hardcoded to Midnight Purple (#3B0764), independent of the
      main accent below. Locked in this way by explicit request: "keep the shooting star purple"
      regardless of what the rest of the screen's accent is set to. -->
-<div style="position:absolute;top:60px;left:40px;width:56px;height:2px;background:linear-gradient(90deg,transparent,#3B0764);border-radius:2px;animation:shoot 1.3s ease-out 1;animation-delay:1.3s"></div>
+<div style="position:absolute;top:-40px;left:-10px;width:56px;height:2px;background:linear-gradient(90deg,transparent,#3B0764);border-radius:2px;animation:shoot 1.3s ease-out 1;animation-delay:1.3s"></div>
 
 <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 40px; text-align: center;">
 <div style="font-size:15px;color:#9a9aa8;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:.3s">Welcome to</div>
@@ -70,7 +70,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif
 <div style="font-size:14px;color:#767683;margin-top:14px;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:.6s">where your journey starts flowing</div>
 </div>
 
-<div style="padding:0 24px 44px;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:.9s">
+<div style="padding:0 24px 44px;opacity:0;animation:fadeUp .6s ease-out forwards;animation-delay:3.4s">
 <button style="width:100%;height:52px;border-radius:14px;border:none;background:#d4680a;color:#ffffff;font-size:15px;font-weight:500;">Let's flow</button>
 </div>
 
