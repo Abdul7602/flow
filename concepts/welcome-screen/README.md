@@ -15,6 +15,12 @@ A one-time first-open moment for brand-new sign-ups: a few seconds of animated n
 
 To change the accent, search for `#d4680a` in `index.html` — it appears twice (the period dot, the button background).
 
+## Shooting star choreography
+
+The star is deliberately timed and positioned to land exactly where "Flow." renders, then fade out the instant the word fades in — the visual effect of the star delivering the word from space. Concretely: starts at `(40px, 60px)`, travels via `translate(155px, 309px)` at a `rotate(63deg)` angle (a steep down-right diagonal, not a shallow horizontal streak), landing at roughly the frame's horizontal and vertical center — where the flex-centered text block places "Flow." given the frame's actual dimensions and font sizes. Timed to complete (`1.3s` duration + `.3s` delay = `1.6s` total) at the exact same `animation-delay` the "Flow." text itself uses to fade in, so the hand-off is simultaneous.
+
+If this needs retuning once actually previewed live (browser text rendering can shift the exact landing spot slightly): adjust the `translate()` end values in the `@keyframes shoot` rule and/or the star div's own `top`/`left` starting position — the animation duration/delay should stay matched to "Flow."'s own `animation-delay` (currently `1.6s`) for the hand-off to still land correctly.
+
 ## History / how this evolved
 
 Originally included a card explaining the moon button's tap-vs-hold gestures ("One button, two moves"). **That entire card has been removed** — the moon's hold gesture no longer exists in the real app (Settings moved to its own separate gear icon; see EDIT no.102 in the main repo's commit history). Since both the moon and the gear are now just plain, self-explanatory taps, there's nothing left that needs a discoverability explainer.
