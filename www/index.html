@@ -82,10 +82,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 .header-title{font-size:34px;font-weight:700;letter-spacing:-0.5px;line-height:1}
 .header-sub{font-size:13px;color:var(--text2-60);margin-top:3px}
 .icon-btn{width:34px;height:34px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;transition:all 0.15s;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.moon-wrap{position:relative;display:flex;align-items:center;justify-content:center}
-.moon-hint{position:absolute;bottom:calc(100% + 8px);right:0;background:var(--text);color:var(--accent-inv);font-size:11px;font-weight:500;padding:5px 10px;border-radius:10px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.2s;font-family:var(--font)}
-.moon-hint::after{content:'';position:absolute;top:100%;right:12px;border:5px solid transparent;border-top-color:var(--text)}
-.moon-hint.show{opacity:1}
+.moon-wrap{position:relative;display:flex;align-items:center;justify-content:center;gap:8px}
 .icon-btn:active{opacity:0.6}
 
 /* SCROLL */
@@ -292,7 +289,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
       <div class="moon-wrap" id="moon-wrap">
         <div class="sync-dot" id="sync-dot"></div>
         <div class="icon-btn" id="moon-btn" onclick="showReview()">🌙</div>
-        <div class="moon-hint" id="moon-hint">Hold for review time</div>
+        <div class="icon-btn" id="settings-btn" onclick="openReviewSettings()">⚙️</div>
       </div>
     </div>
   </div>
@@ -1516,51 +1513,6 @@ function resetDailyRoutineIfNewDay(){
   localStorage.setItem('flow_daily_reset',todayStr);
 }
 
-// ── MOON LONG-PRESS + ONBOARDING HINT ────────────────────────
-(function(){
-  const btn=document.getElementById('moon-btn');
-  const hint=document.getElementById('moon-hint');
-  let pressTimer=null;
-  let hintTimer=null;
-
-  function shouldShowHint(){
-    const first=localStorage.getItem('flow_first_open');
-    if(!first)return false;
-    const days=(Date.now()-parseInt(first))/(1000*60*60*24);
-    return days<30;
-  }
-
-  function showHint(){
-    if(!shouldShowHint())return;
-    hint.classList.add('show');
-    clearTimeout(hintTimer);
-    hintTimer=setTimeout(()=>hint.classList.remove('show'),2500);
-  }
-
-  // hover for desktop
-  btn.addEventListener('mouseenter',showHint);
-  btn.addEventListener('mouseleave',()=>{clearTimeout(hintTimer);hint.classList.remove('show')});
-
-  // long press for mobile
-  btn.addEventListener('touchstart',e=>{
-    pressTimer=setTimeout(()=>{
-      e.preventDefault();
-      hint.classList.remove('show');
-      openReviewSettings();
-    },600);
-    // show hint after 200ms hold
-    setTimeout(()=>{if(pressTimer)showHint()},200);
-  },{passive:true});
-  btn.addEventListener('touchend',()=>{
-    clearTimeout(pressTimer);pressTimer=null;
-    setTimeout(()=>hint.classList.remove('show'),800);
-  });
-  btn.addEventListener('touchmove',()=>{clearTimeout(pressTimer);pressTimer=null});
-
-  // right-click / long-click on desktop
-  btn.addEventListener('contextmenu',e=>{e.preventDefault();openReviewSettings()});
-})();
-
 function openReviewSettings(){
   const saved=localStorage.getItem('flow_review_time')||'22:00';
   document.getElementById('review-time-input').value=saved;
@@ -1998,7 +1950,6 @@ function scheduleReview(){
 }
 scheduleReview();
 // ─────────────────────────────────────────────────────────────
-if(!localStorage.getItem('flow_first_open'))localStorage.setItem('flow_first_open',Date.now().toString());
 resetDailyRoutineIfNewDay();
 initAuth();
 // lock to portrait where the browser allows it (installed PWA on Android/Chromium)
