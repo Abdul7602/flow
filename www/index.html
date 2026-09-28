@@ -1718,6 +1718,37 @@ async function restorePurchases(){
 // is fragile and can silently fail to fire on real devices)
 let currentPaywallPackages=[];
 
+// Billing length shown explicitly next to the price (Apple 3.1.2 requires the
+// subscription length to be clearly disclosed in-app). Reads RevenueCat's ISO-8601
+// subscriptionPeriod when present, falling back to the product title/identifier.
+function paywallPeriodLabel(pkg){
+  const p=pkg?.product?.subscriptionPeriod;
+  if(typeof p==='string'){
+    if(/^P(1Y|12M)$/i.test(p))return 'year';
+    if(/^P1M$/i.test(p))return 'month';
+    if(/^P(1W|7D)$/i.test(p))return 'week';
+  }
+  const t=(pkg?.identifier||'')+' '+(pkg?.product?.title||'');
+  if(/year|annual/i.test(t))return 'year';
+  if(/month/i.test(t))return 'month';
+  return '';
+}
+
+// Only returns a label when the product genuinely carries a free intro offer.
+// Phrased as "for eligible new subscribers" because eligibility is per-user and
+// Apple's own purchase sheet is the final authority on whether it applies.
+function paywallTrialLabel(pkg){
+  const i=pkg?.product?.introPrice;
+  if(!i||Number(i.price)!==0)return '';
+  let n=i.periodNumberOfUnits,u=String(i.periodUnit||'').toUpperCase();
+  if(!n||!u){
+    const m=/^P(\d+)([DWMY])$/i.exec(String(i.period||''));
+    if(m){n=parseInt(m[1],10);u={D:'DAY',W:'WEEK',M:'MONTH',Y:'YEAR'}[m[2].toUpperCase()];}
+  }
+  if(!n||!u)return 'Free trial for eligible new subscribers';
+  return n+'-'+u.toLowerCase()+' free trial for eligible new subscribers';
+}
+
 async function purchaseSubscriptionAt(index){
   const pkg=currentPaywallPackages[index];
   if(!pkg)return;
@@ -1769,18 +1800,37 @@ async function openPaywall(){
   const packagesHTML=packages.map((pkg,i)=>{
     const isYearly=/year|annual/i.test(pkg.identifier+pkg.product.title);
     const badge=isYearly?`<div style="position:absolute;top:-9px;right:14px;background:var(--today);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;letter-spacing:0.02em">BEST VALUE</div>`:'';
+    const period=paywallPeriodLabel(pkg);
+    const trial=paywallTrialLabel(pkg);
     return`<div style="position:relative">
       ${badge}
       <button onclick="purchaseSubscriptionAt(${i})" style="width:100%;text-align:left;padding:16px;border-radius:14px;border:1.5px solid ${isYearly?'var(--today)':'var(--border2)'};background:${isYearly?'var(--priority-light)':'var(--surface)'};margin-bottom:10px;cursor:pointer;font-family:var(--font)">
         <div style="font-size:16px;font-weight:600;color:var(--text)">${pkg.product.title||pkg.identifier}</div>
-        <div style="font-size:13px;color:var(--text2-60);margin-top:2px">${pkg.product.priceString}${pkg.product.description?' · '+pkg.product.description:''}</div>
+        <div style="font-size:13px;color:var(--text2-60);margin-top:2px">${pkg.product.priceString}${period?' / '+period:''}${pkg.product.description?' · '+pkg.product.description:''}</div>
+        ${trial?`<div style="font-size:12px;color:var(--today);margin-top:4px">${trial}</div>`:''}
       </button>
     </div>`;
   }).join('');
 
+  // Required subscription disclosures + functional legal links (Apple Guideline 3.1.2:
+  // must appear inside the app itself, not only in Apple's purchase pop-up).
+  // Wording is platform-aware: Apple ID / Apple EULA on iOS, Google Play on Android.
+  const isAndroidApp=/android/i.test(navigator.userAgent);
+  const storeAccount=isAndroidApp?'Google Play account':'Apple ID account';
+  const manageWhere=isAndroidApp?'Google Play Store subscription settings':'Apple ID Account Settings';
+  const linkStyle='color:var(--text2-60);text-decoration:underline';
+  const termsLink=isAndroidApp?'':`<a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener" style="${linkStyle}">Terms of Use (EULA)</a><span style="color:var(--text3)"> · </span>`;
+  const legalHTML=`
+    <div style="padding:4px 2px 0;font-size:11px;line-height:1.5;color:var(--text3);text-align:center">
+      Payment will be charged to your ${storeAccount} at confirmation of purchase. Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period, at the price shown above. You can manage or cancel your subscription any time in your ${manageWhere} after purchase. Any unused portion of a free trial period, if offered, is forfeited when you purchase a subscription.
+    </div>
+    <div style="text-align:center;padding:10px 0 2px;font-size:12px">
+      ${termsLink}<a href="https://app.flow-daily.com/privacy.html" target="_blank" rel="noopener" style="${linkStyle}">Privacy Policy</a>
+    </div>`;
+
   body.innerHTML=benefitsHTML+packagesHTML+`
     <div onclick="restorePurchases()" style="text-align:center;padding:12px;color:var(--text3);font-size:13px;cursor:pointer">Restore purchases</div>
-  `;
+  `+legalHTML;
 }
 
 function closePaywall(){
