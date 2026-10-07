@@ -71,6 +71,8 @@ index.html                    the entire app (frontend)
 sw.js                          service worker (offline shell, push handling)
 manifest.json                  PWA manifest
 privacy.html                   privacy policy page
+support.html                   support page (App Store Support URL)
+go/index.html                  "Get Flow" link-in-bio page (app.flow-daily.com/go): Google Play button + App Store "coming soon"
 capacitor.config.json          native app wrapper config
 ios/                            generated Xcode project (Capacitor)
 android/                        generated Android Studio/Gradle project (Capacitor)
