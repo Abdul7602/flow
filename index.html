@@ -625,7 +625,7 @@ async function initAuth(){
       initRevenueCat();
     }
     if(event==='SIGNED_OUT'){
-      currentUser=null;cache={notes:[],tasks:[]};rcConfigured=false;
+      currentUser=null;cache={notes:[],tasks:[]};resetRevenueCatUser();
       applyPremiumAccent(false);
       document.getElementById('auth-screen').style.display='flex';
     }
@@ -1624,18 +1624,47 @@ const REVENUECAT_API_KEY_IOS = 'appl_gjmAOaFQvwqjjpONwOGvcYOzSES';
 const REVENUECAT_API_KEY_ANDROID = 'goog_RukWFcHSqlCSXUERgPrbYpvNfMx';
 const PREMIUM_ENTITLEMENT_ID = 'flow_daily_pro'; // must match the entitlement ID set up in RevenueCat dashboard
 
+// RevenueCat must be configured ONCE per app session. Switching users afterwards
+// uses logIn/logOut — calling configure() again (old behaviour after sign-out ->
+// sign-in) can break purchases. All calls are queued so overlapping callers
+// (initAuth + onAuthStateChange firing together) never race each other.
 let rcConfigured = false;
-async function initRevenueCat(){
-  if(!isNativeApp()||rcConfigured||!currentUser)return;
-  try{
-    const {Purchases} = window.Capacitor.Plugins;
-    if(!Purchases)return;
-    const platform = window.Capacitor.getPlatform();
-    const apiKey = platform==='ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
-    if(apiKey.startsWith('REPLACE_'))return; // not configured yet — skip quietly
-    await Purchases.configure({apiKey, appUserID: currentUser.id});
+let rcUserId = null;            // app_user_id RevenueCat is currently identified as
+let rcChain = Promise.resolve();
+
+function initRevenueCat(){
+  rcChain = rcChain.then(syncRevenueCatUser).catch(e=>console.error('RevenueCat init error',e));
+  return rcChain;
+}
+
+async function syncRevenueCatUser(){
+  if(!isNativeApp()||!currentUser)return;
+  const {Purchases} = window.Capacitor.Plugins;
+  if(!Purchases)return;
+  const platform = window.Capacitor.getPlatform();
+  const apiKey = platform==='ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
+  if(apiKey.startsWith('REPLACE_'))return; // not configured yet — skip quietly
+  const uid = currentUser.id;
+  if(!rcConfigured){
+    await Purchases.configure({apiKey, appUserID: uid});
     rcConfigured = true;
-  }catch(e){console.error('RevenueCat init error',e)}
+    rcUserId = uid;
+    return;
+  }
+  if(rcUserId!==uid){
+    await Purchases.logIn({appUserID: uid});
+    rcUserId = uid;
+  }
+}
+
+function resetRevenueCatUser(){
+  rcChain = rcChain.then(async()=>{
+    if(!rcConfigured||!rcUserId)return;
+    const {Purchases} = window.Capacitor.Plugins;
+    try{ await Purchases.logOut(); }catch(e){ console.warn('RevenueCat logOut',e); }
+    rcUserId = null;
+  });
+  return rcChain;
 }
 
 async function getSubscriptionOfferings(){
