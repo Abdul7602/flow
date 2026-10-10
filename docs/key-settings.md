@@ -26,8 +26,8 @@ One place to find every number/value in Flow that might need changing later, why
 ## 3. AI model (cost vs quality)
 
 **What:** which Claude model does the note extraction.
-**Current value:** `claude-haiku-4-5-20251001` (chosen for cost — ~3x cheaper than Sonnet, extraction quality is fine for this structured task)
-**Where:** `supabase/functions/claude-proxy/index.ts` → `model: 'claude-haiku-4-5-20251001'`
+**Current value:** `claude-haiku-5-5` with `thinking: {type:'disabled'}` and `output_config: {effort:'low'}` (since EDIT no.111, 2026-10-10; previously `claude-haiku-4-5-20251001`). ~8–10x cheaper than Haiku 4.5 ($0.10/$0.50 vs $1/$5 per million tokens; Haiku 5.5's tokenizer counts ~30% more tokens). Thinking must stay off: the apps read `content[0].text`, and the proxy also filters the response to text blocks as a safety net. Verified on real notes after deploy.
+**Where:** `supabase/functions/claude-proxy/index.ts` → `claudePayload` (`model`, `thinking`, `output_config`). Server-only: change → `npx supabase functions deploy claude-proxy`, no app build. Rollback: redeploy from tag `pre-edit-111-haiku-5-5`.
 **How to change:** if extraction quality ever needs to improve (e.g. handling more complex notes), swap to a Sonnet model string here. Check `docs.claude.com` for current model names before changing — they update periodically.
 
 ---
@@ -94,6 +94,8 @@ One place to find every number/value in Flow that might need changing later, why
 **How to change:** edit the number → Deploy. No schema change needed.
 
 **Why 900 specifically — the math behind this number:**
+**Update (2026-10-10, Haiku 5.5):** worst case is now ~$0.0006/extraction, so 900 extractions cost ~€0.50 at most. At €4.99/month minus the store's 15% (~€0.75), net is ~€4.24 — a worst-case profit floor of ~€3.70/subscriber/month. The original Haiku 4.5 reasoning below is kept for history.
+
 At Claude Haiku 4.5 pricing (~$0.002/extraction worst case), 900 extractions costs ~€1.80 in raw AI usage if a subscriber uses every single one in a month. At a €3.99/month subscription price, after Apple/Google's 15% cut (~€0.60), net revenue is ~€3.39 — leaving a **guaranteed profit floor of ~€1.59/subscriber/month even in the absolute worst case**. Real average usage is far lower than 900/month for almost all users, so typical profit per subscriber is closer to €3/month. This was chosen over a higher number (e.g. 3000) specifically because 3000 could have gone *negative* for a heavy user (3000 × €0.002 = €6 cost vs €3.39 net revenue) — 900 removes that risk entirely while still being 3x the free tier.
 
 **Yearly subscribers get the same 900/month** — the yearly plan is priced as a discount for paying annually, not a different usage tier. If yearly is priced at roughly 10x monthly (a ~17% discount, standard SaaS practice) e.g. €34.99/year for a €3.99/month plan, the same per-month profit math applies since usage resets monthly regardless of billing frequency.

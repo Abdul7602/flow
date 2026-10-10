@@ -22,7 +22,7 @@ const MONTHLY_LIMIT = 300 // extractions per user per month
 
 ## What number to pick
 
-Rule of thumb: at **Claude Haiku 4.5** pricing, one extraction costs roughly **$0.001–0.002**. So:
+Rule of thumb: at **Claude Haiku 5.5** pricing (since EDIT no.111, 2026-10-10), one extraction costs roughly **$0.0002–0.0006** (was $0.001–0.002 on Haiku 4.5). So:
 
 | Limit/month | Rough cost ceiling per user/month |
 |---|---|
