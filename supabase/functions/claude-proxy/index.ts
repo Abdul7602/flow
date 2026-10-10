@@ -6,7 +6,7 @@
 //
 // Includes a monthly per-user extraction cap to protect
 // against runaway API costs (one bad actor or bug can't
-// drain the account). Adjust MONTHLY_LIMIT below anytime.
+// drain the account). Limits: FREE_LIFETIME_LIMIT / PREMIUM_MONTHLY_LIMIT below.
 // ═══════════════════════════════════════════════════
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -17,7 +17,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const FREE_MONTHLY_LIMIT = 75      // extractions per user per month — free tier (permanent, resets monthly; kept low enough that real daily use naturally hits premium)
+// EDIT no.113: the free allowance is ONE-TIME, not monthly. The app is paid to install, so
+// each install's 75 is already covered. Non-subscribers get 75 extractions in total, ever,
+// counted in settings.free_used_total (never resets). Subscriber usage is counted separately
+// (monthly), so whatever is left of the 75 is still there if a subscription ends.
+// If the app ever becomes free to install, set this to 0 to make AI subscription-only.
+const FREE_LIFETIME_LIMIT = 75
 const PREMIUM_MONTHLY_LIMIT = 900 // extractions per user per month — active subscribers (3x free tier, guarantees profit floor even at full usage — see docs/key-settings.md)
 
 Deno.serve(async (req) => {
@@ -53,7 +58,7 @@ Deno.serve(async (req) => {
 
     const { data: settings } = await supabase
       .from('settings')
-      .select('parse_count, parse_month, subscription_status, subscription_expires_at')
+      .select('*') // '*' so a missing free_used_total column can't break the whole lookup
       .eq('user_id', user.id)
       .single()
 
@@ -63,26 +68,28 @@ Deno.serve(async (req) => {
     const now = new Date()
     const stillEntitled = (settings?.subscription_status === 'active' || settings?.subscription_status === 'trial')
       && (!settings?.subscription_expires_at || new Date(settings.subscription_expires_at) > now)
-    const MONTHLY_LIMIT = stillEntitled ? PREMIUM_MONTHLY_LIMIT : FREE_MONTHLY_LIMIT
-
-    const currentCount = settings?.parse_month === nowMonth ? (settings?.parse_count || 0) : 0
+    // Subscribers: 900 per calendar month. Everyone else: the one-time free allowance.
+    const LIMIT = stillEntitled ? PREMIUM_MONTHLY_LIMIT : FREE_LIFETIME_LIMIT
+    const monthCount = settings?.parse_month === nowMonth ? (settings?.parse_count || 0) : 0
+    const freeUsed = settings?.free_used_total || 0
+    const currentCount = stillEntitled ? monthCount : freeUsed
 
     // usage-check mode: just report the count, don't call Claude or increment
     const bodyPeek = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {}
     if (bodyPeek.usageCheck) {
       return new Response(JSON.stringify({
-        used: currentCount, limit: MONTHLY_LIMIT, remaining: Math.max(0, MONTHLY_LIMIT - currentCount),
-        subscribed: stillEntitled,
+        used: currentCount, limit: LIMIT, remaining: Math.max(0, LIMIT - currentCount),
+        subscribed: stillEntitled, lifetime: !stillEntitled,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    if (currentCount >= MONTHLY_LIMIT) {
+    if (currentCount >= LIMIT) {
       return new Response(JSON.stringify({
-        error: 'monthly_limit_reached',
+        error: 'monthly_limit_reached', // code kept as-is: the apps already handle it
         message: stillEntitled
-          ? `You've reached this month's extraction limit (${MONTHLY_LIMIT}). It resets on the 1st.`
-          : `You've reached the free plan's monthly limit (${MONTHLY_LIMIT}). Upgrade to Flow Premium for a much higher limit.`,
-        used: currentCount, limit: MONTHLY_LIMIT, subscribed: stillEntitled,
+          ? `You've reached this month's extraction limit (${LIMIT}). It resets on the 1st.`
+          : `You've used all ${LIMIT} of your free AI extractions. Subscribe to Flow Premium for ${PREMIUM_MONTHLY_LIMIT} a month.`,
+        used: currentCount, limit: LIMIT, subscribed: stillEntitled, lifetime: !stillEntitled,
       }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,7 +97,9 @@ Deno.serve(async (req) => {
     }
 
     supabase.from('settings')
-      .update({ parse_count: currentCount + 1, parse_month: nowMonth })
+      .update(stillEntitled
+        ? { parse_count: monthCount + 1, parse_month: nowMonth }
+        : { free_used_total: freeUsed + 1 })
       .eq('user_id', user.id)
       .then(() => {})
 

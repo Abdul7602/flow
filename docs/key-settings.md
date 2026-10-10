@@ -94,6 +94,8 @@ One place to find every number/value in Flow that might need changing later, why
 **How to change:** edit the number → Deploy. No schema change needed.
 
 **Why 900 specifically — the math behind this number:**
+**Free allowance (EDIT no.113, 2026-10-10):** the app is paid to install, so free use is a ONE-TIME 75 extractions per account (`FREE_LIFETIME_LIMIT`, counted in `settings.free_used_total`, never resets). Subscribers get 900/month counted separately (`parse_count`/`parse_month`), so whatever is left of the 75 survives a cancelled subscription. If the app ever becomes free to install, set `FREE_LIFETIME_LIMIT = 0` (subscription-only AI). Requires `supabase-free-lifetime-schema.sql` to have been run.
+
 **Update (2026-10-10, Haiku 5.5):** worst case is now ~$0.0006/extraction, so 900 extractions cost ~€0.50 at most. At €4.99/month minus the store's 15% (~€0.75), net is ~€4.24 — a worst-case profit floor of ~€3.70/subscriber/month. The original Haiku 4.5 reasoning below is kept for history.
 
 At Claude Haiku 4.5 pricing (~$0.002/extraction worst case), 900 extractions costs ~€1.80 in raw AI usage if a subscriber uses every single one in a month. At a €3.99/month subscription price, after Apple/Google's 15% cut (~€0.60), net revenue is ~€3.39 — leaving a **guaranteed profit floor of ~€1.59/subscriber/month even in the absolute worst case**. Real average usage is far lower than 900/month for almost all users, so typical profit per subscriber is closer to €3/month. This was chosen over a higher number (e.g. 3000) specifically because 3000 could have gone *negative* for a heavy user (3000 × €0.002 = €6 cost vs €3.39 net revenue) — 900 removes that risk entirely while still being 3x the free tier.
