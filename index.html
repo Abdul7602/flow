@@ -1532,7 +1532,7 @@ function openReviewSettings(){
       const pct=u.used/u.limit;
       const color=pct>=1?'var(--urgent)':pct>=0.8?'var(--priority)':'var(--text3)';
       const premiumTag=u.subscribed?' <span style="color:var(--today);font-weight:600">⚡ Premium</span>':'';
-      usageEl.innerHTML=`<span style="color:${color}">${u.used} / ${u.limit}</span> note extractions used this month${premiumTag}`;
+      usageEl.innerHTML=`<span style="color:${color}">${u.used} / ${u.limit}</span> ${u.lifetime?'free AI extractions used (one-time)':'note extractions used this month'}${premiumTag}`;
       if(upgradeBtn)upgradeBtn.style.display=u.subscribed?'none':'block';
       if(premiumLine)premiumLine.textContent=u.subscribed?'You have Flow Premium — thank you for supporting Flow':'';
     });
@@ -1669,7 +1669,7 @@ function refreshSettingsSubscriptionUI(u){
   const usageEl=document.getElementById('usage-line');
   const upgradeBtn=document.getElementById('upgrade-btn');
   const premiumLine=document.getElementById('premium-status-line');
-  if(usageEl)usageEl.innerHTML=`<span style="color:var(--text3)">${u.used} / ${u.limit}</span> note extractions used this month`;
+  if(usageEl)usageEl.innerHTML=`<span style="color:var(--text3)">${u.used} / ${u.limit}</span> ${u.lifetime?'free AI extractions used (one-time)':'note extractions used this month'}`;
   if(upgradeBtn)upgradeBtn.style.display=u.subscribed?'none':'block';
   if(premiumLine)premiumLine.textContent=u.subscribed?'You have Flow Premium — thank you for supporting Flow':'';
 }
@@ -1777,7 +1777,7 @@ async function openPaywall(){
     <div style="margin-bottom:18px">
       <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
         <span style="color:var(--today);font-size:15px">✓</span>
-        <span style="font-size:14px;color:var(--text)">900 AI extractions/month <span style="color:var(--text3)">(vs 75 on the free plan — 12x more)</span></span>
+        <span style="font-size:14px;color:var(--text)">900 AI extractions/month <span style="color:var(--text3)">(vs 75 free, one-time)</span></span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
         <span style="color:var(--today);font-size:15px">✓</span>
