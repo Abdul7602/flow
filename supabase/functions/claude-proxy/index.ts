@@ -96,7 +96,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    supabase.from('settings')
+    // EDIT no.119: usage counters are written with the service role, because users are
+    // no longer allowed to update these columns themselves (see supabase-settings-lockdown.sql).
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    admin.from('settings')
       .update(stillEntitled
         ? { parse_count: monthCount + 1, parse_month: nowMonth }
         : { free_used_total: freeUsed + 1 })
