@@ -536,6 +536,14 @@ async function fetchAllData(){
   lastSyncedTaskIds=new Set(cache.tasks.map(t=>t.id));
   if(settingsRes.data){
     if(settingsRes.data.review_time)localStorage.setItem('flow_review_time',settingsRes.data.review_time.slice(0,5));
+    // EDIT no.120: save the device's timezone so the daily review push arrives at the
+    // user's local review time (the server defaulted everyone to Europe/Helsinki).
+    try{
+      const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if(tz&&tz!==settingsRes.data.timezone&&currentUser){
+        supa.from('settings').update({timezone:tz}).eq('user_id',currentUser.id).then(()=>{});
+      }
+    }catch(e){}
   }
 }
 
