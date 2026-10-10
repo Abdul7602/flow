@@ -643,12 +643,36 @@ function showLimitBanner(msg){
   alert('⚠️ Monthly limit reached\n\n'+msg);
 }
 
+// EDIT no.118: usage is read straight from the user's own settings row (no server
+// call — saves a Supabase Edge Function invocation every time the app opens, signs in
+// or opens Settings). This is DISPLAY ONLY: claude-proxy still enforces the limits on
+// every AI call. Keep these numbers and the entitlement rule in sync with
+// supabase/functions/claude-proxy/index.ts (FREE_LIFETIME_LIMIT / PREMIUM_MONTHLY_LIMIT).
+const USAGE_FREE_LIFETIME_LIMIT=75;
+const USAGE_PREMIUM_MONTHLY_LIMIT=900;
 async function checkUsage(){
   try{
-    const d=await claudeCall({usageCheck:true});
-    applyPremiumAccent(!!d?.subscribed);
-    return d; // {used, limit, remaining, subscribed}
-  }catch{return null}
+    const {data:s,error}=await supa.from('settings')
+      .select('subscription_status,subscription_expires_at,parse_count,parse_month,free_used_total')
+      .single();
+    if(error||!s)throw error||new Error('no settings row');
+    const nowD=new Date();
+    const subscribed=(s.subscription_status==='active'||s.subscription_status==='trial')
+      &&(!s.subscription_expires_at||new Date(s.subscription_expires_at)>nowD);
+    const nowMonth=nowD.toISOString().slice(0,7);
+    const limit=subscribed?USAGE_PREMIUM_MONTHLY_LIMIT:USAGE_FREE_LIFETIME_LIMIT;
+    const used=subscribed?(s.parse_month===nowMonth?(s.parse_count||0):0):(s.free_used_total||0);
+    const d={used,limit,remaining:Math.max(0,limit-used),subscribed,lifetime:!subscribed};
+    applyPremiumAccent(subscribed);
+    return d;
+  }catch{
+    // fallback: ask the server (old behaviour) if the direct read fails for any reason
+    try{
+      const d=await claudeCall({usageCheck:true});
+      applyPremiumAccent(!!d?.subscribed);
+      return d; // {used, limit, remaining, subscribed, lifetime}
+    }catch{return null}
+  }
 }
 
 // Switches the whole app's accent between orange (free) and violet (premium),
