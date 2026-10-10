@@ -96,11 +96,17 @@ Deno.serve(async (req) => {
 
     const body = await req.json()
 
+    // Haiku 5.5 (EDIT no.111): ~10x cheaper than Haiku 4.5 and built for extraction.
+    // Thinking is switched OFF and effort set to low: extraction doesn't need reasoning,
+    // thinking tokens would count against max_tokens, and the app reads content[0].text,
+    // which would otherwise be a thinking block.
     const claudePayload = {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-5-5',
       max_tokens: Math.min(body.max_tokens || 600, 1000),
       system: body.system || '',
       messages: body.messages || [],
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'low' },
     }
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -114,6 +120,12 @@ Deno.serve(async (req) => {
     })
 
     const data = await claudeRes.json()
+
+    // Safety net: the apps read data.content[0].text, so make sure only text blocks are
+    // returned (drops any thinking/other block types if the API ever sends them).
+    if (data && Array.isArray(data.content)) {
+      data.content = data.content.filter((b: { type?: string }) => b && b.type === 'text')
+    }
 
     return new Response(JSON.stringify(data), {
       status: claudeRes.status,
