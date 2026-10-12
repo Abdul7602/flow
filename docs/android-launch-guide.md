@@ -19,6 +19,18 @@ Android is simpler than iOS in almost every way — the build runs on your own W
 
 ---
 
+## Release checklist (every Android build) — added 2026-10-12
+
+Build only from **`C:\dev\flow`** on the **`android`** branch.
+
+1. `git switch android` then `git pull` (pull **while on the branch you build**).
+2. Make sure **`android/app/google-services.json` exists**. It is deliberately NOT in GitHub (`.gitignore`), so a fresh clone does not have it. Without it the app builds fine but **push notifications are greyed out**. Re-download any time from Firebase → Project settings → Your apps → Android (`com.flowdaily.app`, project `flow-22ea5`).
+3. `npx cap sync android` (copies the web code + plugin list into the Android project; skipping it caused the 34/35 black screen).
+4. Check `android/app/build.gradle` has a **new versionCode** (Play rejects reused codes).
+5. Android Studio: Gradle JDK = **jbr-21** (Java 25 is too new for Gradle 8.14.3) → Sync Project with Gradle Files.
+6. **Test on the phone first (Run ▶ / APK) before any upload**: app opens, sign in, write a note (tasks extracted, usage counter +1), notifications toggle turns on, sign out → sign in → buy Monthly.
+7. Only then: signed bundle → closed testing → production. Tag the release `android-vc<code>-<name>`.
+
 ## Step 1 — Install Android Studio (one-time, free)
 
 1. Download from **developer.android.com/studio** — works fine on your Windows/AMD laptop
