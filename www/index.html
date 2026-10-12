@@ -231,17 +231,38 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
 </style>
 <script src="vendor/supabase-js-2.117.2.js"></script>
 <style>
-.auth-screen{position:absolute;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:stretch;justify-content:center;padding:32px}
+.auth-screen{position:absolute;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 28px calc(24px + env(safe-area-inset-bottom));overflow-y:auto}
+.auth-wrap{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:stretch;margin:auto 0}
 .auth-logo,.auth-tag{text-align:center}
 .auth-logo{font-size:44px;font-weight:700;letter-spacing:-1px;margin-bottom:6px}
 .auth-tag{font-size:14px;color:var(--text2-60);margin-bottom:40px;text-align:center}
+.auth-step{display:flex;flex-direction:column;align-items:stretch}
 .auth-input{width:100%;font-size:16px;font-family:var(--font);padding:14px 16px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);color:var(--text);outline:none;margin-bottom:12px}
 .auth-input:focus{border-color:var(--today)}
-.auth-btn{width:100%;padding:14px;border-radius:12px;background:var(--text);color:var(--accent-inv);border:none;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer;transition:opacity 0.15s}
-.auth-btn:active{opacity:0.75}
-.auth-btn:disabled{opacity:0.4}
-.auth-msg{font-size:13px;color:var(--text2-60);margin-top:16px;text-align:center;line-height:1.5}
+.auth-btn,.auth-social{width:100%;height:50px;padding:0 16px;border-radius:12px;font-family:var(--font);font-size:16px;font-weight:500;cursor:pointer;transition:opacity 0.15s;display:flex;align-items:center;justify-content:center;gap:10px}
+.auth-btn{background:var(--text);color:var(--accent-inv);border:none}
+.auth-btn.subtle{background:var(--surface3);color:var(--text)}
+.auth-btn:active,.auth-social:active{opacity:0.75}
+.auth-btn:disabled,.auth-social:disabled{opacity:0.4;cursor:default}
+.auth-social{margin-bottom:12px}
+.auth-social svg{width:20px;height:20px;flex:none}
+.auth-apple{background:var(--text);color:var(--accent-inv);border:none}
+.auth-apple svg{fill:currentColor;margin-top:-3px}
+.auth-google{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:8px 0 20px;color:var(--text3);font-size:13px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border2)}
+.auth-code-title{font-size:20px;font-weight:600;text-align:center;margin-bottom:6px}
+.auth-code-sub{font-size:14px;color:var(--text2-60);text-align:center;margin-bottom:20px;line-height:1.5}
+.auth-code-sub b{color:var(--text);font-weight:500}
+.auth-otp{text-align:center;letter-spacing:0.3em;font-size:20px;font-family:var(--mono)}
+.auth-links{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:16px;font-size:14px;color:var(--text3)}
+.auth-link{background:none;border:none;padding:6px 4px;font-family:var(--font);font-size:14px;color:var(--text2-60);cursor:pointer}
+.auth-link:disabled{opacity:0.4}
+.auth-msg{font-size:13px;color:var(--text2-60);margin-top:16px;text-align:center;line-height:1.5;min-height:20px;white-space:pre-line}
+.auth-msg.error{color:var(--urgent)}
 .auth-msg.success{color:#2d8a4e}
+.auth-legal{font-size:12px;color:var(--text3);text-align:center;margin-top:24px;line-height:1.5}
+.auth-legal a{color:var(--text2-60)}
 .sync-dot{position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;background:#2d8a4e;opacity:0;transition:opacity 0.3s}
 .sync-dot.syncing{opacity:1;background:var(--priority);animation:pulse 1s infinite}
 </style>
@@ -265,18 +286,30 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh
   <div class="rsub">Flow works best upright</div>
 </div>
 <div class="auth-screen" id="auth-screen" style="display:none">
+ <div class="auth-wrap">
   <div class="auth-logo">Flow</div>
   <div class="auth-tag">Write naturally. Your day connects itself.</div>
-  <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email" oninput="checkReviewerEmail()">
-  <!-- ⭐ REVIEWER-ONLY LOGIN — see docs/reviewer-access.md — delete this input, the JS block below, and the oninput above to fully remove ⭐ -->
-  <input class="auth-input" type="password" id="reviewer-password" placeholder="Password" autocomplete="current-password" style="display:none;margin-top:10px">
-  <!-- ⭐ END REVIEWER-ONLY LOGIN HTML ⭐ -->
-  <button class="auth-btn" id="auth-btn" onclick="sendMagicLink()">Send magic link</button>
-  <div id="otp-section" style="display:none;width:100%;margin-top:16px">
-    <input class="auth-input" type="text" inputmode="numeric" id="auth-otp" placeholder="Code from email" maxlength="10" autocomplete="one-time-code" style="text-align:center;letter-spacing:0.3em;font-size:18px">
-    <button class="auth-btn" onclick="verifyOtp()">Verify code</button>
+  <!-- EDIT no.124: sign-in options. Apple (iPhone app only), Google, or email code. -->
+  <div class="auth-step" id="auth-step-start">
+    <button class="auth-social auth-apple" id="auth-apple" onclick="signInWithApple()" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.62c-.02-2.33 1.9-3.45 1.99-3.5-1.08-1.59-2.77-1.8-3.37-1.83-1.43-.15-2.8.84-3.53.84-.73 0-1.85-.82-3.04-.8-1.56.02-3 .91-3.81 2.31-1.62 2.82-.41 7 1.17 9.29.77 1.12 1.69 2.38 2.9 2.33 1.16-.05 1.6-.75 3.01-.75 1.4 0 1.8.75 3.03.73 1.25-.02 2.04-1.14 2.81-2.27.88-1.3 1.25-2.56 1.27-2.62-.03-.01-2.43-.93-2.45-3.71zM14.08 5.77c.64-.78 1.07-1.85.95-2.92-.92.04-2.04.61-2.7 1.39-.59.69-1.11 1.79-.97 2.84 1.03.08 2.07-.52 2.72-1.31z"/></svg><span>Continue with Apple</span></button>
+    <button class="auth-social auth-google" id="auth-google" onclick="signInWithGoogle()" style="display:none"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span>Continue with Google</span></button>
+    <div class="auth-divider" id="auth-divider" style="display:none">or</div>
+    <input class="auth-input" type="email" id="auth-email" placeholder="Your email" autocomplete="email" oninput="checkReviewerEmail()" onkeydown="if(event.key==='Enter')document.getElementById('auth-btn').click()">
+    <!-- ⭐ REVIEWER-ONLY LOGIN — see docs/reviewer-access.md — delete this input, the JS block below, and the oninput above to fully remove ⭐ -->
+    <input class="auth-input" type="password" id="reviewer-password" placeholder="Password" autocomplete="current-password" style="display:none" onkeydown="if(event.key==='Enter')document.getElementById('auth-btn').click()">
+    <!-- ⭐ END REVIEWER-ONLY LOGIN HTML ⭐ -->
+    <button class="auth-btn" id="auth-btn" onclick="sendMagicLink()">Continue with email</button>
+  </div>
+  <div class="auth-step" id="otp-section" style="display:none">
+    <div class="auth-code-title">Check your email</div>
+    <div class="auth-code-sub">Enter the code we sent to<br><b id="auth-code-email"></b></div>
+    <input class="auth-input auth-otp" type="text" inputmode="numeric" id="auth-otp" placeholder="Code" maxlength="10" autocomplete="one-time-code" oninput="otpInput()" onkeydown="if(event.key==='Enter')verifyOtp()">
+    <button class="auth-btn" id="auth-verify-btn" onclick="verifyOtp()">Verify</button>
+    <div class="auth-links"><button class="auth-link" id="auth-resend" onclick="resendCode()">Resend code</button><span>·</span><button class="auth-link" onclick="authBack()">Use another email</button></div>
   </div>
   <div class="auth-msg" id="auth-msg"></div>
+  <div class="auth-legal">By continuing you agree to the Flow <a href="https://app.flow-daily.com/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</div>
+ </div>
 </div>
 
 <div class="tab" id="tab-cal">
@@ -552,7 +585,7 @@ async function fetchAllData(){
 // ⭐ REVIEWER-ONLY LOGIN (for app store review) — see docs/reviewer-access.md
 // Safe to delete this whole block (and the matching HTML block above) once
 // app review no longer needs it. Does not touch or weaken auth for any other
-// email — every other email always uses the normal OTP flow below, untouched.
+// email — every other email always uses the normal code flow below, untouched.
 // The actual password is never stored in this code — only in Supabase's own
 // Auth system (set via dashboard) and in Play Console's private review notes.
 const REVIEWER_EMAIL='reviewer@flow-daily.com';
@@ -566,48 +599,218 @@ function checkReviewerEmail(){
     btn.onclick=reviewerSignIn;
   }else{
     pwField.style.display='none';
-    btn.textContent='Send magic link';
+    btn.textContent='Continue with email';
     btn.onclick=sendMagicLink;
   }
 }
 async function reviewerSignIn(){
   const email=document.getElementById('auth-email').value.trim();
   const password=document.getElementById('reviewer-password').value;
-  const msg=document.getElementById('auth-msg');
-  const btn=document.getElementById('auth-btn');
-  if(!password){msg.textContent='Enter the password';return}
-  btn.disabled=true;btn.textContent='Signing in…';
+  if(!password){authMsg('Enter the password','error');return}
+  setAuthBusy(true);document.getElementById('auth-btn').textContent='Signing in…';
   const{error}=await supa.auth.signInWithPassword({email,password});
-  if(error){msg.textContent=error.message;msg.className='auth-msg';btn.disabled=false;btn.textContent='Sign in'}
+  setAuthBusy(false);document.getElementById('auth-btn').textContent='Sign in';
+  if(error)authMsg(error.message,'error');
   // success handled by onAuthStateChange, same as normal login
 }
 // ⭐ END REVIEWER-ONLY LOGIN JS ⭐
 
-async function sendMagicLink(){
-  const email=document.getElementById('auth-email').value.trim();
-  const msg=document.getElementById('auth-msg');
-  const btn=document.getElementById('auth-btn');
-  if(!email||!email.includes('@')){msg.textContent='Enter a valid email';return}
-  btn.disabled=true;btn.textContent='Sending…';
-  const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href.split('#')[0]}});
-  if(error){msg.textContent=error.message;btn.disabled=false;btn.textContent='Send magic link'}
-  else{
-    msg.textContent='✓ Check your email — tap the link, or enter the code here';
-    msg.className='auth-msg success';
-    btn.textContent='Resend';btn.disabled=false;
-    document.getElementById('otp-section').style.display='block';
-    document.getElementById('auth-otp').focus();
-  }
+// ═══ SIGN-IN SCREEN (EDIT no.124) ═══════════════════
+// Three ways in: Sign in with Apple (iPhone app only), Google, or an email code.
+// Apple + Google use the native sign-in sheet (@capgo/capacitor-social-login),
+// then hand the ID token to Supabase (signInWithIdToken), so no email is sent.
+// On the website, Google uses Supabase's normal redirect sign-in.
+// Same email = same Flow account: Supabase links Google/Apple to an existing
+// email account automatically when the email is verified.
+//
+// Fill these in from Google Cloud → Credentials (see docs/social-sign-in-setup.md).
+// While empty, the Google button stays hidden — nothing breaks.
+const GOOGLE_WEB_CLIENT_ID=''; // "Web application" client — Android + website (also in Supabase → Google → Client IDs)
+const GOOGLE_IOS_CLIENT_ID=''; // "iOS" client — iPhone app (its reversed ID is the URL scheme in ios/App/App/Info.plist)
+const APPLE_CLIENT_ID='com.flowdaily.app';
+
+let authBusy=false;
+function authPlatform(){
+  try{if(isNativeApp())return window.Capacitor.getPlatform()}catch(e){}
+  return 'web';
+}
+function socialPluginReady(){
+  try{return !!(window.Capacitor&&window.Capacitor.isPluginAvailable&&window.Capacitor.isPluginAvailable('SocialLogin')&&window.Capacitor.Plugins.SocialLogin)}catch(e){return false}
+}
+function appleAvailable(){return authPlatform()==='ios'&&socialPluginReady()}
+function googleAvailable(){
+  const p=authPlatform();
+  if(p==='web')return !!GOOGLE_WEB_CLIENT_ID;
+  if(p==='ios')return !!GOOGLE_IOS_CLIENT_ID&&socialPluginReady();
+  if(p==='android')return !!GOOGLE_WEB_CLIENT_ID&&socialPluginReady();
+  return false;
+}
+function setupAuthButtons(){
+  const a=appleAvailable(),g=googleAvailable();
+  document.getElementById('auth-apple').style.display=a?'flex':'none';
+  document.getElementById('auth-google').style.display=g?'flex':'none';
+  document.getElementById('auth-divider').style.display=(a||g)?'flex':'none';
+  // With Apple/Google above it, the email button steps back visually
+  document.getElementById('auth-btn').classList.toggle('subtle',a||g);
+}
+function authMsg(text,kind){
+  const m=document.getElementById('auth-msg');
+  m.textContent=text||'';
+  m.className='auth-msg'+(kind?' '+kind:'');
+}
+function setAuthBusy(on){
+  authBusy=on;
+  document.querySelectorAll('#auth-screen button').forEach(b=>{b.disabled=on});
+}
+function isCancelError(e){
+  const t=String((e&&(e.message||e.errorMessage||e.code))||e||'');
+  return /cancel|error 1001\b/i.test(t);
+}
+function socialError(provider,e){
+  console.error(provider+' sign-in failed',e);
+  if(isCancelError(e)){authMsg('');return}
+  const detail=String((e&&(e.message||e.errorMessage))||e||'').slice(0,90);
+  authMsg(`Couldn't sign in with ${provider}. Try again, or use email.`+(detail?`\n(${detail})`:''),'error');
+}
+function resetAuthScreen(){
+  setAuthBusy(false);
+  document.getElementById('otp-section').style.display='none';
+  document.getElementById('auth-step-start').style.display='flex';
+  document.getElementById('auth-otp').value='';
+  checkReviewerEmail();
+  setupAuthButtons();
+  authMsg('');
+}
+function showAuthScreen(){
+  resetAuthScreen();
+  document.getElementById('auth-screen').style.display='flex';
 }
 
-async function verifyOtp(){
+// Nonce: Apple/Google put sha256(nonce) inside their token; Supabase gets the raw
+// nonce and checks it matches, so a stolen token can't be replayed.
+function randomNonce(){
+  const a=new Uint8Array(32);crypto.getRandomValues(a);
+  return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function sha256Hex(str){
+  const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(h),b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+let socialInitPromise=null;
+function socialInit(){
+  if(!socialInitPromise){
+    const opts={};
+    const p=authPlatform();
+    if(p==='ios'){
+      opts.apple={clientId:APPLE_CLIENT_ID};
+      if(GOOGLE_IOS_CLIENT_ID){
+        opts.google={iOSClientId:GOOGLE_IOS_CLIENT_ID,mode:'online'};
+        if(GOOGLE_WEB_CLIENT_ID)opts.google.iOSServerClientId=GOOGLE_WEB_CLIENT_ID;
+      }
+    }else if(p==='android'&&GOOGLE_WEB_CLIENT_ID){
+      opts.google={webClientId:GOOGLE_WEB_CLIENT_ID,mode:'online'};
+    }
+    socialInitPromise=window.Capacitor.Plugins.SocialLogin.initialize(opts).catch(e=>{socialInitPromise=null;throw e});
+  }
+  return socialInitPromise;
+}
+
+async function signInWithApple(){
+  if(authBusy||!appleAvailable())return;
+  setAuthBusy(true);authMsg('Signing in…');
+  try{
+    await socialInit();
+    const rawNonce=randomNonce();
+    const res=await window.Capacitor.Plugins.SocialLogin.login({provider:'apple',options:{scopes:['email'],nonce:await sha256Hex(rawNonce)}});
+    const token=res&&res.result&&res.result.idToken;
+    if(!token)throw new Error('No token from Apple');
+    const{error}=await supa.auth.signInWithIdToken({provider:'apple',token,nonce:rawNonce});
+    if(error)throw error;
+    authMsg('');
+    // success → onAuthStateChange hides this screen
+  }catch(e){socialError('Apple',e)}
+  finally{setAuthBusy(false)}
+}
+
+async function signInWithGoogle(){
+  if(authBusy||!googleAvailable())return;
+  setAuthBusy(true);authMsg('Signing in…');
+  if(authPlatform()==='web'){
+    // Website: Supabase redirects to Google and back here, then signs in
+    const{error}=await supa.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href.split('#')[0].split('?')[0]}});
+    if(error){socialError('Google',error);setAuthBusy(false)}
+    return;
+  }
+  try{
+    await socialInit();
+    const rawNonce=randomNonce();
+    // forcePrompt: always show the account picker (and never reuse an old token whose nonce wouldn't match)
+    const res=await window.Capacitor.Plugins.SocialLogin.login({provider:'google',options:{nonce:await sha256Hex(rawNonce),forcePrompt:true}});
+    const token=res&&res.result&&res.result.idToken;
+    if(!token)throw new Error('No token from Google');
+    const{error}=await supa.auth.signInWithIdToken({provider:'google',token,nonce:rawNonce});
+    if(error)throw error;
+    authMsg('');
+  }catch(e){socialError('Google',e)}
+  finally{setAuthBusy(false)}
+}
+
+// Signing out of Flow also forgets the Google account choice, so the next
+// Google sign-in shows the account picker again. Never blocks sign-out.
+function socialSignOut(){
+  if(!socialPluginReady()||!googleAvailable())return;
+  socialInit().then(()=>window.Capacitor.Plugins.SocialLogin.logout({provider:'google'})).catch(()=>{});
+}
+
+// ── Email code (backup) ──
+let otpEmail='';
+async function sendMagicLink(){
+  if(authBusy)return;
   const email=document.getElementById('auth-email').value.trim();
-  const code=document.getElementById('auth-otp').value.trim();
-  const msg=document.getElementById('auth-msg');
-  if(!code||code.length<6){msg.textContent='Enter the code from the email';msg.className='auth-msg';return}
-  msg.textContent='Verifying…';msg.className='auth-msg';
-  const{error}=await supa.auth.verifyOtp({email,token:code,type:'email'});
-  if(error){msg.textContent=error.message;msg.className='auth-msg'}
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){authMsg('Enter a valid email','error');return}
+  setAuthBusy(true);
+  const btn=document.getElementById('auth-btn');
+  btn.textContent='Sending…';
+  const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href.split('#')[0]}});
+  setAuthBusy(false);
+  btn.textContent='Continue with email';
+  if(error){authMsg(error.message,'error');return}
+  otpEmail=email;
+  document.getElementById('auth-code-email').textContent=email;
+  document.getElementById('auth-step-start').style.display='none';
+  document.getElementById('otp-section').style.display='flex';
+  document.getElementById('auth-otp').value='';
+  authMsg('');
+  setTimeout(()=>document.getElementById('auth-otp').focus(),50);
+}
+async function resendCode(){
+  if(authBusy||!otpEmail)return;
+  setAuthBusy(true);authMsg('Sending a new code…');
+  const{error}=await supa.auth.signInWithOtp({email:otpEmail,options:{emailRedirectTo:window.location.href.split('#')[0]}});
+  setAuthBusy(false);
+  if(error)authMsg(error.message,'error');
+  else authMsg('New code sent ✓','success');
+}
+function authBack(){
+  otpEmail='';
+  resetAuthScreen();
+  setTimeout(()=>document.getElementById('auth-email').focus(),50);
+}
+function otpInput(){
+  const el=document.getElementById('auth-otp');
+  const digits=el.value.replace(/\D/g,'');
+  if(digits!==el.value)el.value=digits;
+}
+async function verifyOtp(){
+  if(authBusy)return;
+  const code=document.getElementById('auth-otp').value.replace(/\D/g,'');
+  if(code.length<6){authMsg('Enter the code from the email','error');return}
+  setAuthBusy(true);authMsg('Verifying…');
+  const{error}=await supa.auth.verifyOtp({email:otpEmail,token:code,type:'email'});
+  setAuthBusy(false);
+  if(error)authMsg(/expired|invalid/i.test(error.message)?'That code is wrong or expired. Check the latest email or resend.':error.message,'error');
+  else authMsg('');
   // success is handled by onAuthStateChange — auth screen hides automatically
 }
 
@@ -621,7 +824,7 @@ async function initAuth(){
     renderNotesList();renderCal();
     initRevenueCat();
   }else{
-    document.getElementById('auth-screen').style.display='flex';
+    showAuthScreen();
   }
   supa.auth.onAuthStateChange(async(event,session)=>{
     if(event==='SIGNED_IN'&&session){
@@ -635,7 +838,7 @@ async function initAuth(){
     if(event==='SIGNED_OUT'){
       currentUser=null;cache={notes:[],tasks:[]};resetRevenueCatUser();
       applyPremiumAccent(false);
-      document.getElementById('auth-screen').style.display='flex';
+      showAuthScreen();
     }
   });
 }
@@ -1608,6 +1811,7 @@ function closeSettings(){
 
 async function logout(){
   await supa.auth.signOut();
+  socialSignOut();
   closeSettings();
 }
 
@@ -1615,6 +1819,24 @@ async function deleteAccount(){
   if(!currentUser)return;
   const typed=prompt('Delete your account and ALL your data?\n\nEvery note, task, and setting will be permanently erased. This cannot be undone.\n\nType DELETE to confirm:');
   if(typed!=='DELETE'){showToast('Cancelled');return}
+  // EDIT no.124: accounts made with Sign in with Apple — Apple requires the app to
+  // revoke its Apple sign-in when the account is deleted. A fresh Apple confirmation
+  // gives the server a one-time code to do that. If it fails for any other reason
+  // than the user cancelling, the account is still deleted.
+  let appleAuthorizationCode=null;
+  const providers=(currentUser.app_metadata&&currentUser.app_metadata.providers)||[];
+  if(providers.includes('apple')&&appleAvailable()){
+    try{
+      showToast('Confirm with Apple to delete');
+      await socialInit();
+      const res=await window.Capacitor.Plugins.SocialLogin.login({provider:'apple',options:{scopes:[]}});
+      const r=(res&&res.result)||{};
+      appleAuthorizationCode=r.authorizationCode||(r.accessToken&&r.accessToken.token)||null;
+    }catch(e){
+      if(isCancelError(e)){showToast('Cancelled');return}
+      console.error('Apple confirm before delete failed',e);
+    }
+  }
   try{
     showToast('Deleting account…');
     const{data:{session}}=await supa.auth.getSession();
@@ -1624,13 +1846,15 @@ async function deleteAccount(){
         'Content-Type':'application/json',
         'Authorization':'Bearer '+session.access_token,
         'apikey':SUPA_KEY
-      }
+      },
+      body:JSON.stringify(appleAuthorizationCode?{appleAuthorizationCode}:{})
     });
     const d=await resp.json();
     if(d.error)throw new Error(d.error);
     // wipe local state and return to login
     cache={notes:[],tasks:[]};
     await supa.auth.signOut();
+    socialSignOut();
     closeSettings();
     showToast('Account deleted');
   }catch(e){
