@@ -1355,6 +1355,19 @@ function fmt12(timeStr){
 const parsedCache={}; // noteId -> last parsed text, avoids duplicate API calls
 const parseGeneration={}; // noteId -> counter; only the latest triggerParse() call for a note may commit its results
 
+// After a background parse commits, refresh whatever the user is looking at.
+// Uses the note the parse was STARTED for (not whichever note is open now), so a
+// parse that finishes after the card was closed or another note was opened can
+// never write its tasks under the wrong note or none at all.
+function refreshAfterParse(noteId){
+  try{
+    if(currentNoteId===noteId&&document.getElementById('note-editor').classList.contains('open'))renderTaskList(noteId);
+    if(document.getElementById('tab-cal').classList.contains('active')){renderCal();renderCalEvents()}
+    if(document.getElementById('tab-week').classList.contains('active')){renderWeek()}
+    if(document.getElementById('tab-notes').classList.contains('active')&&!document.getElementById('note-editor').classList.contains('open'))renderNotesList();
+  }catch(e){}
+}
+
 async function triggerParse(){
   if(!currentNoteId)return;
   const data=loadData();
@@ -1435,7 +1448,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
         target.time=rr.newTime!==undefined?rr.newTime:target.time;
         target.done=false;
         saveData(data);
-        renderTaskList(currentNoteId);
+        refreshAfterParse(noteIdAtStart);
         // refresh calendar if open
         if(document.getElementById('tab-cal').classList.contains('active')){renderCal();renderCalEvents()}
         if(document.getElementById('tab-week').classList.contains('active')){renderWeek()}
@@ -1447,7 +1460,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     if(rr.action==='cancel'&&rr.taskId){
       if(isStale()){aiStatus.style.display='none';return}
       data.tasks=data.tasks.filter(t=>t.id!==rr.taskId);
-      saveData(data);renderTaskList(currentNoteId);
+      saveData(data);refreshAfterParse(noteIdAtStart);
       if(document.getElementById('tab-cal').classList.contains('active')){renderCal();renderCalEvents()}
       showToast('Task removed');
       aiStatus.style.display='none';
@@ -1475,8 +1488,8 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
     if(isStale()){aiStatus.style.display='none';return}
     if(parsed.tasks&&parsed.tasks.length){
       // wipe old auto tasks for this note, keep manual
-      data.tasks=data.tasks.filter(t=>!(t.noteId===currentNoteId&&!t.manual));
-      const manual=data.tasks.filter(t=>t.noteId===currentNoteId&&t.manual);
+      data.tasks=data.tasks.filter(t=>!(t.noteId===noteIdAtStart&&!t.manual));
+      const manual=data.tasks.filter(t=>t.noteId===noteIdAtStart&&t.manual);
       parsed.tasks.forEach(pt=>{
         if(!pt.text||pt.text.trim().length<2)return;
         if(manual.some(m=>wordOverlap(m.text,pt.text)>0.65))return;
@@ -1498,7 +1511,7 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
           if(converted){localTime=converted.time;localDate=converted.date}
         }
         data.tasks.push({
-          id:genId(),noteId:currentNoteId,
+          id:genId(),noteId:noteIdAtStart,
           text:pt.text.trim(),
           date:localDate,
           time:localTime,
@@ -1508,22 +1521,22 @@ Rules: Only match if the note clearly refers to an existing task by subject (e.g
           priority,done:false,created:Date.now()
         });
       });
-      saveData(data);renderTaskList(currentNoteId);
+      saveData(data);refreshAfterParse(noteIdAtStart);
       showToast(parsed.tasks.length+' task'+(parsed.tasks.length>1?'s':'')+' detected');
     }
   }catch(e){
     // API unavailable — minimal local fallback
     if(isStale())return;
-    data.tasks=data.tasks.filter(t=>!(t.noteId===currentNoteId&&!t.manual));
+    data.tasks=data.tasks.filter(t=>!(t.noteId===noteIdAtStart&&!t.manual));
     const lines=(title+'\n'+body).split(/\n/).map(l=>l.trim()).filter(Boolean);
     lines.forEach(line=>{
       const date=parseDateStr(line)||todayStr;
       const timeM=line.match(/(?:at\s+)?(\d{1,2}(?:[:\.]\d{2})?\s*(?:am|pm))/i);
       const time=timeM?parseTimeStr(timeM[1]):null;
       let label=line.replace(/\b(tomo|tomorrow|today|next\s+\w+)\b/gi,'').replace(/(?:at\s+)?\d{1,2}(?:[:\.]\d{2})?\s*(?:am|pm)/gi,'').replace(/\s{2,}/g,' ').trim();
-      if(label.length>1)data.tasks.push({id:genId(),noteId:currentNoteId,text:label,date,time,priority,done:false,created:Date.now()});
+      if(label.length>1)data.tasks.push({id:genId(),noteId:noteIdAtStart,text:label,date,time,priority,done:false,created:Date.now()});
     });
-    saveData(data);renderTaskList(currentNoteId);
+    saveData(data);refreshAfterParse(noteIdAtStart);
   }
   finally{aiStatus.style.display='none'}
 }
