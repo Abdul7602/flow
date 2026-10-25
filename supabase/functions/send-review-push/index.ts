@@ -187,7 +187,14 @@ async function sendFcm(deviceToken: string, title: string, body: string): Promis
   return { ok: false }
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  // EDIT no.121: only the scheduled job may run this. The check switches on once the
+  // CRON_SECRET secret is set in Supabase; the cron job must send it as the
+  // 'x-cron-secret' header. Until CRON_SECRET is set, behaviour is unchanged.
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+  }
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -211,7 +218,10 @@ Deno.serve(async (_req) => {
     const now = new Date()
 
     for (const s of settings || []) {
-      const tz = s.timezone || 'Europe/Helsinki'
+      // timezone is user-editable (EDIT no.120) — an invalid value must never break the
+      // whole run for everyone, so fall back to the default if it isn't a real IANA zone
+      let tz = s.timezone || 'Europe/Helsinki'
+      try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }) } catch { tz = 'Europe/Helsinki' }
 
       const localNow = new Intl.DateTimeFormat('en-GB', {
         timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
@@ -228,7 +238,7 @@ Deno.serve(async (_req) => {
       // 9-min window (widened from an original 4 min): the cron runs every 5
       // min, so a tight window risks missing real users if a run is ever
       // slightly delayed — routine for scheduled jobs generally.
-      if (diff < 0 || diff > 9) continue
+      if (!Number.isFinite(diff) || diff < 0 || diff > 9) continue
 
       const { count } = await supabase
         .from('tasks')

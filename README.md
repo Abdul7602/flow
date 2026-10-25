@@ -55,7 +55,7 @@ Flow is an AI-powered personal productivity app that unifies notes, tasks, and c
 
 - **Frontend** — Single self-contained HTML/JS file, wrapped natively for iOS and Android via **Capacitor**
 - **Backend** — **Supabase**: PostgreSQL (with Row Level Security), Auth (magic link + OTP), Edge Functions
-- **AI** — Claude API (Haiku 4.5) via a secure Edge Function proxy — the API key never touches the client
+- **AI** — Claude API (Haiku 5.5, thinking off, low effort) via a secure Edge Function proxy — the API key never touches the client
 - **Email** — Resend, sending from a verified custom domain
 - **Hosting** — GitHub Pages, served through a custom domain (Cloudflare DNS)
 - **Push** — Web Push (VAPID) for browser/PWA, APNs for the native iOS app, FCM for the native Android app
@@ -71,6 +71,8 @@ index.html                    the entire app (frontend)
 sw.js                          service worker (offline shell, push handling)
 manifest.json                  PWA manifest
 privacy.html                   privacy policy page
+support.html                   support page (App Store Support URL)
+go/index.html                  "Get Flow" link-in-bio page (app.flow-daily.com/go): Google Play button + App Store "coming soon" + "Support Flow" (GoFundMe) button
 capacitor.config.json          native app wrapper config
 ios/                            generated Xcode project (Capacitor)
 android/                        generated Android Studio/Gradle project (Capacitor)
